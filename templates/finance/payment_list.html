@@ -1,0 +1,142 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Payments Ledger - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Client Payment Collections</h3>
+        <p class="text-muted small mb-0">Record and track client payments and dispatch allocations</p>
+    </div>
+    {% if can_write %}
+    <a href="{% url 'finance:payment_create' %}" class="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-cash"></i> Record New Payment
+    </a>
+    {% endif %}
+</div>
+
+<!-- Total Banner -->
+<div class="alert alert-light border shadow-sm py-2 px-3 mb-4 d-flex justify-content-between align-items-center">
+    <div class="text-secondary small">
+        <i class="bi bi-wallet2 me-1"></i> Filtered Payment Total:
+        <span class="fs-6 fw-bold text-success ms-1">₹{{ total_payments|intcomma }}</span>
+    </div>
+    <a href="{% url 'reports:financial_summary_report' %}" class="btn btn-sm btn-outline-dark py-0">Financial Summary &rarr;</a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-3">
+            <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search receipt #, client, ref #...">
+        </div>
+        <div class="col-md-3">
+            <select name="client" class="form-select">
+                <option value="">All Clients</option>
+                {% for c in clients %}
+                    <option value="{{ c.id }}" {% if selected_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="method" class="form-select">
+                <option value="">All Methods</option>
+                {% for val, label in methods %}
+                    <option value="{{ val }}" {% if selected_method == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" title="From Date">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" title="To Date">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i></button>
+        </div>
+    </form>
+</div>
+
+<!-- Payments Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Receipt #</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Amount Paid</th>
+                    <th>Payment Method</th>
+                    <th>Reference / UTR</th>
+                    <th>Allocated To</th>
+                    <th>Recorded By</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pay in page_obj %}
+                <tr>
+                    <td>
+                        <a href="{% url 'finance:payment_receipt' pay.id %}" class="fw-bold text-dark text-decoration-none">
+                            {{ pay.payment_number }}
+                        </a>
+                    </td>
+                    <td class="text-nowrap">{{ pay.payment_date|date:"d M Y" }}</td>
+                    <td>
+                        <a href="{% url 'clients:client_detail' pay.client.id %}" class="fw-semibold text-decoration-none text-dark">
+                            {{ pay.client.name }}
+                        </a>
+                    </td>
+                    <td class="fs-6 fw-bold text-success">₹{{ pay.amount|intcomma }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ pay.payment_method }}</span></td>
+                    <td class="font-monospace small text-muted">{{ pay.reference_number|default:"-" }}</td>
+                    <td class="small">
+                        {% for alloc in pay.allocations.all %}
+                            <span class="badge bg-secondary-subtle text-secondary">{{ alloc.dispatch.dispatch_number }}: ₹{{ alloc.amount_allocated|intcomma }}</span>
+                        {% empty %}
+                            <span class="text-muted">Account Balance</span>
+                        {% endfor %}
+                    </td>
+                    <td class="text-muted small">{{ pay.recorded_by.username|default:"Admin" }}</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'finance:payment_detail' pay.id %}" class="btn btn-outline-secondary" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'finance:payment_receipt' pay.id %}" target="_blank" class="btn btn-outline-secondary" title="Print Receipt">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No payments recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} payments</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&client={{ selected_client }}&method={{ selected_method }}&date_from={{ date_from }}&date_to={{ date_to }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&client={{ selected_client }}&method={{ selected_method }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&client={{ selected_client }}&method={{ selected_method }}&date_from={{ date_from }}&date_to={{ date_to }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

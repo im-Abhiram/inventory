@@ -1,0 +1,116 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Stock Transactions Ledger - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Stock Movement Ledger</h3>
+        <p class="text-muted small mb-0">Complete audit history of all factory stock additions, productions, adjustments, and dispatches</p>
+    </div>
+    <a href="{% url 'reports:stock_movement_report' %}?export=csv" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+        <i class="bi bi-download"></i> Export CSV
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-3">
+            <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search reference, notes...">
+        </div>
+        <div class="col-md-3">
+            <select name="product" class="form-select">
+                <option value="">All Products</option>
+                {% for p in products %}
+                    <option value="{{ p.id }}" {% if selected_product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="type" class="form-select">
+                <option value="">All Types</option>
+                {% for val, label in types %}
+                    <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" title="From Date">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" title="To Date">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i></button>
+        </div>
+    </form>
+</div>
+
+<!-- Transactions Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Movement Type</th>
+                    <th>Quantity</th>
+                    <th>Balance After</th>
+                    <th>Reference</th>
+                    <th>Notes</th>
+                    <th>Recorded By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in page_obj %}
+                <tr>
+                    <td class="text-nowrap">{{ t.date|date:"d M Y" }}</td>
+                    <td class="fw-semibold text-dark">{{ t.product.name }}</td>
+                    <td>
+                        <span class="badge {% if 'ADD' in t.transaction_type or 'PRODUCTION' in t.transaction_type or 'OPENING' in t.transaction_type or 'PURCHASE' in t.transaction_type %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                            {{ t.get_transaction_type_display }}
+                        </span>
+                    </td>
+                    <td class="fw-bold">
+                        {% if 'ADD' in t.transaction_type or 'PRODUCTION' in t.transaction_type or 'OPENING' in t.transaction_type or 'PURCHASE' in t.transaction_type %}
+                            <span class="text-success">+{{ t.quantity|intcomma }}</span>
+                        {% else %}
+                            <span class="text-danger">-{{ t.quantity|intcomma }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="fw-medium">{{ t.balance_after|intcomma|default:"-" }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ t.reference|default:"-" }}</span></td>
+                    <td class="text-muted small" style="max-width: 200px;">{{ t.notes|default:"-" }}</td>
+                    <td class="text-muted small">{{ t.created_by.username|default:"System" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No stock transactions match your filters.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} transactions</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&product={{ selected_product }}&type={{ selected_type }}&date_from={{ date_from }}&date_to={{ date_to }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&product={{ selected_product }}&type={{ selected_type }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&product={{ selected_product }}&type={{ selected_type }}&date_from={{ date_from }}&date_to={{ date_to }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

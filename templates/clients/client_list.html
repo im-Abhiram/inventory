@@ -1,0 +1,155 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Clients Registry - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Client Management</h3>
+        <p class="text-muted small mb-0">Customers purchasing bricks and construction materials</p>
+    </div>
+    {% if is_superadmin %}
+    <a href="{% url 'clients:client_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-person-plus"></i> Add New Client
+    </a>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search client name, code, phone, location...">
+            </div>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="credit" class="form-select">
+                <option value="">All Credit</option>
+                <option value="exceeded" {% if credit_filter == 'exceeded' %}selected{% endif %}>Limit Exceeded</option>
+                <option value="available" {% if credit_filter == 'available' %}selected{% endif %}>Within Limit</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Clients Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Client Name</th>
+                    <th>Contact Person / Phone</th>
+                    <th>Location</th>
+                    <th>Credit Limit</th>
+                    <th>Outstanding Balance</th>
+                    <th>Available Credit</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in page_obj %}
+                <tr>
+                    <td><span class="badge bg-light text-dark border font-monospace">{{ c.code }}</span></td>
+                    <td>
+                        <a href="{% url 'clients:client_detail' c.id %}" class="fw-bold text-dark text-decoration-none">
+                            {{ c.name }}
+                        </a>
+                        <span class="badge {% if c.payment_type == 'Cash' %}bg-info-subtle text-info-emphasis border border-info-subtle{% else %}bg-secondary-subtle text-secondary{% endif %} ms-1" style="font-size: 0.65rem;">
+                            {{ c.payment_type }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="fw-medium">{{ c.phone }}</div>
+                        <small class="text-muted">{{ c.contact_person|default:"-" }}</small>
+                    </td>
+                    <td class="text-muted small">{{ c.location|default:"-" }}</td>
+                    <td class="fw-semibold">₹{{ c.credit_limit|intcomma }}</td>
+                    <td>
+                        <span class="fw-bold {% if c.is_credit_exceeded %}text-danger{% elif c.outstanding_balance > 0 %}text-warning-emphasis{% else %}text-success{% endif %}">
+                            ₹{{ c.outstanding_balance|intcomma }}
+                        </span>
+                        {% if c.is_credit_exceeded %}
+                            <span class="badge bg-danger-subtle text-danger ms-1" style="font-size: 0.65rem;">EXCEEDED</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="small {% if c.available_credit < 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                            ₹{{ c.available_credit|intcomma }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if c.is_active %}
+                            <span class="badge bg-success-subtle text-success">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'clients:client_detail' c.id %}" class="btn btn-outline-secondary" title="View Detail Tabs">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if can_write %}
+                            <a href="{% url 'finance:payment_create' %}?client={{ c.id }}" class="btn btn-outline-success" title="Record Payment">
+                                <i class="bi bi-cash"></i>
+                            </a>
+                            {% endif %}
+                            {% if is_superadmin %}
+                            <a href="{% url 'clients:client_edit' c.id %}" class="btn btn-outline-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" action="{% url 'clients:client_toggle_status' c.id %}" class="d-inline" onsubmit="return confirm('Toggle status for {{ c.name }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-{% if c.is_active %}danger{% else %}success{% endif %}" title="{% if c.is_active %}Deactivate{% else %}Activate{% endif %}">
+                                    <i class="bi bi-power"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No clients registered yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} clients</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&status={{ status_filter }}&credit={{ credit_filter }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&status={{ status_filter }}&credit={{ credit_filter }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&status={{ status_filter }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

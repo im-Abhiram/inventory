@@ -1,0 +1,82 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ title }} - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'construction:project_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">{{ title }}</h5>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger small">{{ form.non_field_errors.0 }}</div>
+                    {% endif %}
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold small">Project / Job Site Name <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold small">Client <span class="text-danger">*</span></label>
+                            {{ form.client }}
+                            {% if form.client.errors %}<div class="text-danger small mt-1">{{ form.client.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold small">Site Location / Address</label>
+                            {{ form.location }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Project Status <span class="text-danger">*</span></label>
+                            {{ form.status }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Start Date <span class="text-danger">*</span></label>
+                            {{ form.start_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Expected Completion Date</label>
+                            {{ form.expected_completion_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Actual Completion Date</label>
+                            {{ form.actual_completion_date }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Project Scope / Description</label>
+                        {{ form.description }}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small">Contractor Notes</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'construction:project_list' %}" class="btn btn-light border px-4">Cancel</a>
+                        <button type="submit" class="btn btn-brick px-4">Save Project</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

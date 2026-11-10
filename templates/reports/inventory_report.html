@@ -1,0 +1,92 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Factory Stock Report - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'reports:reports_index' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">Factory Inventory Report</h3>
+            <p class="text-muted small mb-0">Current stock audit and minimum safety thresholds</p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer me-1"></i> Print</button>
+        <a href="?export=csv&status={{ selected_status }}" class="btn btn-dark btn-sm"><i class="bi bi-download me-1"></i> Export CSV</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white no-print">
+    <form method="get" class="row g-2">
+        <div class="col-md-9">
+            <select name="status" class="form-select">
+                <option value="">All Stock Levels</option>
+                <option value="low" {% if selected_status == 'low' %}selected{% endif %}>Low Stock Only</option>
+                <option value="out" {% if selected_status == 'out' %}selected{% endif %}>Out of Stock Only</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-dark w-100">Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Report Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Code</th>
+                    <th>Product Description</th>
+                    <th class="text-end">Opening</th>
+                    <th class="text-end">Produced (+)</th>
+                    <th class="text-end">Additions (+)</th>
+                    <th class="text-end">Dispatched (-)</th>
+                    <th class="text-end">Current Stock</th>
+                    <th class="text-end">Min Threshold</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in inventories %}
+                <tr>
+                    <td class="font-monospace fw-semibold">{{ inv.product.code }}</td>
+                    <td class="fw-bold">{{ inv.product.name }}</td>
+                    <td class="text-end">{{ inv.opening_stock|intcomma }}</td>
+                    <td class="text-end text-primary">+{{ inv.total_production|intcomma }}</td>
+                    <td class="text-end text-success">+{{ inv.total_additions|intcomma }}</td>
+                    <td class="text-end text-danger">-{{ inv.total_dispatch|intcomma }}</td>
+                    <td class="text-end fs-6 fw-bold {% if inv.current_stock <= 0 %}text-danger{% elif inv.is_low_stock %}text-warning-emphasis{% else %}text-success{% endif %}">
+                        {{ inv.current_stock|intcomma }} {{ inv.product.unit }}
+                    </td>
+                    <td class="text-end text-muted">{{ inv.product.minimum_stock_level|intcomma }}</td>
+                    <td>
+                        {% if inv.current_stock <= 0 %}
+                            <span class="badge bg-danger">Out of Stock</span>
+                        {% elif inv.is_low_stock %}
+                            <span class="badge bg-warning text-dark">Low Stock</span>
+                        {% else %}
+                            <span class="badge bg-success">In Stock</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No inventory matching criteria.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light fs-6">
+                <tr>
+                    <th colspan="6" class="text-end">Total Stock Units:</th>
+                    <th class="text-end text-dark fw-bold">{{ total_stock|intcomma }}</th>
+                    <th colspan="2"></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

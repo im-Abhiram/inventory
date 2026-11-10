@@ -1,0 +1,134 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Products Catalog - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Manufactured Products Catalog</h3>
+        <p class="text-muted small mb-0">Hollow bricks, interlock bricks, solid bricks, and construction materials</p>
+    </div>
+    {% if is_superadmin %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'products:product_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-plus-circle"></i> Add Product
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-7">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search by product name, code...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active Only</option>
+                <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Products Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Unit</th>
+                    <th>Selling Price</th>
+                    <th>Factory Stock</th>
+                    <th>Min Level</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in page_obj %}
+                <tr>
+                    <td><span class="badge bg-light text-dark border font-monospace">{{ p.code }}</span></td>
+                    <td>
+                        <a href="{% url 'products:product_detail' p.id %}" class="fw-bold text-dark text-decoration-none">
+                            {{ p.name }}
+                        </a>
+                    </td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ p.unit }}</span></td>
+                    <td class="fw-semibold">₹{{ p.selling_price|intcomma }}</td>
+                    <td>
+                        {% if p.inventory.current_stock <= 0 %}
+                            <span class="badge bg-danger-subtle text-danger fw-bold">0 (Out)</span>
+                        {% elif p.is_low_stock %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis fw-bold">{{ p.inventory.current_stock|intcomma }} (Low)</span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success fw-bold">{{ p.inventory.current_stock|intcomma }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ p.minimum_stock_level|intcomma }}</td>
+                    <td>
+                        {% if p.is_active %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                        {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'products:product_detail' p.id %}" class="btn btn-outline-secondary" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if is_superadmin %}
+                            <a href="{% url 'products:product_edit' p.id %}" class="btn btn-outline-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="post" action="{% url 'products:product_toggle_status' p.id %}" class="d-inline" onsubmit="return confirm('Toggle status for {{ p.name }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-{% if p.is_active %}danger{% else %}success{% endif %}" title="{% if p.is_active %}Deactivate{% else %}Activate{% endif %}">
+                                    <i class="bi bi-power"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No products found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} products</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&category={{ selected_category }}&status={{ selected_status }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&category={{ selected_category }}&status={{ selected_status }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&category={{ selected_category }}&status={{ selected_status }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

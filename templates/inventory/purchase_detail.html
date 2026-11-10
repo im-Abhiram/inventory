@@ -1,0 +1,88 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Purchase {{ purchase.purchase_number }} - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'inventory:purchase_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">Goods Received Note: {{ purchase.purchase_number }}</h5>
+                        <small class="text-muted">Date: {{ purchase.purchase_date|date:"d M Y" }}</small>
+                    </div>
+                </div>
+                <div>
+                    <button onclick="window.print()" class="btn btn-sm btn-outline-dark"><i class="bi bi-printer me-1"></i> Print Voucher</button>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="text-center p-3 mb-4 bg-light rounded-3">
+                    <div class="text-muted small fw-semibold">TOTAL PROCUREMENT COST</div>
+                    <div class="fs-1 fw-bold text-dark">₹{{ purchase.total_amount|intcomma }}</div>
+                    <div class="fw-semibold text-primary fs-5 mt-1">+{{ purchase.quantity|intcomma }} {{ purchase.product.unit }} of {{ purchase.product.name }}</div>
+                </div>
+
+                <div class="row g-3 mb-4 small">
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <span class="text-uppercase text-secondary fw-bold small">Supplier Details</span>
+                            <h6 class="fw-bold text-dark mt-1 mb-1">{{ purchase.supplier_name }}</h6>
+                            <div class="text-muted">Phone: {{ purchase.supplier_phone|default:"-" }}</div>
+                            <div class="text-muted">Vendor Bill / Ref: <strong>{{ purchase.invoice_number|default:"-" }}</strong></div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <span class="text-uppercase text-secondary fw-bold small">Logistics &amp; Payment</span>
+                            <div class="mt-1">Vehicle No: <strong>{{ purchase.vehicle_number|default:"-" }}</strong></div>
+                            <div>Payment Method: <span class="badge bg-light text-dark border">{{ purchase.payment_method }}</span></div>
+                            <div class="mt-1">Payment Status: 
+                                <span class="badge {% if purchase.payment_status == 'Paid' %}bg-success{% elif purchase.payment_status == 'Partially Paid' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                    {{ purchase.payment_status }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <table class="table table-bordered align-middle small mb-4">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Description</th>
+                            <th class="text-center">Quantity Purchased</th>
+                            <th class="text-end">Unit Cost (₹)</th>
+                            <th class="text-end">Total Cost (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="font-monospace fw-semibold">{{ purchase.product.code }}</td>
+                            <td class="fw-bold">{{ purchase.product.name }}</td>
+                            <td class="text-center fw-bold text-success fs-6">+{{ purchase.quantity|intcomma }} {{ purchase.product.unit }}</td>
+                            <td class="text-end">₹{{ purchase.unit_price|intcomma }}</td>
+                            <td class="text-end fw-bold fs-6">₹{{ purchase.total_amount|intcomma }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                {% if purchase.notes %}
+                <div class="p-3 bg-light rounded-3 mb-4 small">
+                    <strong>Remarks / Notes:</strong> {{ purchase.notes }}
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-between align-items-center text-muted small pt-3 border-top">
+                    <span>Recorded by: <strong>{{ purchase.created_by.username|default:"Admin" }}</strong> ({{ purchase.created_at|date:"d M Y H:i" }})</span>
+                    <a href="{% url 'inventory:inventory_list' %}" class="btn btn-light border btn-sm">Inspect Plant Stock</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

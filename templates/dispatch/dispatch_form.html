@@ -1,0 +1,261 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Create Dispatch - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'dispatch:dispatch_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">Create Consignment Dispatch</h5>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-warning small mb-4">
+                    <i class="bi bi-exclamation-triangle me-1"></i> Saving this dispatch reduces factory inventory immediately. If a project site is chosen, that project site's material stock increases automatically. Negative stock is strictly prevented.
+                </div>
+
+                <form method="post" id="dispatchForm" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger small">{{ form.non_field_errors.0 }}</div>
+                    {% endif %}
+                    {% if formset.non_form_errors %}
+                        <div class="alert alert-danger small">{{ formset.non_form_errors.0 }}</div>
+                    {% endif %}
+
+                    <!-- Header Fields -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Dispatch Date <span class="text-danger">*</span></label>
+                            {{ form.dispatch_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Client <span class="text-danger">*</span></label>
+                            {{ form.client }}
+                            {% if form.client.errors %}<div class="text-danger small mt-1">{{ form.client.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Construction Project Site (Optional)</label>
+                            {{ form.project }}
+                            <div class="form-text small">Delivered directly to site stock</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Vehicle Number</label>
+                            {{ form.vehicle_number }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Driver Name &amp; Contact</label>
+                            {{ form.driver_name }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small">Delivery Notes / Site Remarks</label>
+                        {{ form.delivery_notes }}
+                    </div>
+
+                    <!-- Items Formset Table -->
+                    <div class="border rounded-3 p-3 bg-light mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-box me-1"></i>Dispatch Consignment Items</h6>
+                            <small class="text-muted">Enter product quantities and unit prices</small>
+                        </div>
+
+                        {{ formset.management_form }}
+
+                        <div class="table-responsive bg-white rounded border">
+                            <table class="table table-sm align-middle mb-0" id="itemsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th style="width: 160px;">Quantity</th>
+                                        <th style="width: 180px;">Unit Price (₹)</th>
+                                        <th style="width: 160px;">Total (₹)</th>
+                                        <th style="width: 80px;" class="text-center">Remove</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item_form in formset %}
+                                    <tr class="item-row">
+                                        <td>
+                                            {{ item_form.id }}
+                                            {{ item_form.product }}
+                                            {% if item_form.product.errors %}<div class="text-danger small">{{ item_form.product.errors.0 }}</div>{% endif %}
+                                        </td>
+                                        <td>
+                                            {{ item_form.quantity }}
+                                            {% if item_form.quantity.errors %}<div class="text-danger small">{{ item_form.quantity.errors.0 }}</div>{% endif %}
+                                        </td>
+                                        <td>
+                                            {{ item_form.unit_price }}
+                                            {% if item_form.unit_price.errors %}<div class="text-danger small">{{ item_form.unit_price.errors.0 }}</div>{% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="row-total fw-bold text-dark">₹0.00</span>
+                                        </td>
+                                        <td class="text-center">
+                                            {% if item_form.instance.pk %}
+                                                {{ item_form.DELETE }}
+                                            {% else %}
+                                                <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="bi bi-trash"></i></button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="addMoreBtn">
+                                <i class="bi bi-plus"></i> Add Another Product
+                            </button>
+                            <div class="fs-5 fw-bold text-dark">
+                                Grand Total: <span class="text-danger" id="grandTotal">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'dispatch:dispatch_list' %}" class="btn btn-light border px-4">Cancel</a>
+                        <button type="submit" id="saveDispatchBtn" class="btn btn-brick px-4">Confirm &amp; Dispatch</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const productsData = {{ products_data|safe }};
+    const productPriceMap = {};
+    productsData.forEach(p => {
+        productPriceMap[p.id] = { price: p.selling_price, stock: p.inventory__current_stock, unit: p.unit };
+    });
+
+    function recalculateTotals() {
+        let grandTotal = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const qtyInput = row.querySelector('.item-qty');
+            const priceInput = row.querySelector('.item-price');
+            const totalSpan = row.querySelector('.row-total');
+            const deleteBox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+
+            if (deleteBox && deleteBox.checked) {
+                if (totalSpan) totalSpan.textContent = '₹0.00';
+                return;
+            }
+
+            const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+            const price = parseFloat(priceInput ? priceInput.value : 0) || 0;
+            const rowTotal = qty * price;
+            if (totalSpan) {
+                totalSpan.textContent = '₹' + rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+            grandTotal += rowTotal;
+        });
+
+        document.getElementById('grandTotal').textContent = '₹' + grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function hookRowEvents(row) {
+        const prodSelect = row.querySelector('.product-select');
+        const priceInput = row.querySelector('.item-price');
+        const qtyInput = row.querySelector('.item-qty');
+        const removeBtn = row.querySelector('.btn-remove-row');
+
+        if (prodSelect) {
+            prodSelect.addEventListener('change', () => {
+                const prodId = prodSelect.value;
+                if (productPriceMap[prodId] && priceInput && (!priceInput.value || priceInput.value === '0.00' || priceInput.value === '0')) {
+                    priceInput.value = productPriceMap[prodId].price;
+                }
+                recalculateTotals();
+            });
+        }
+        if (qtyInput) qtyInput.addEventListener('input', recalculateTotals);
+        if (priceInput) priceInput.addEventListener('input', recalculateTotals);
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                const deleteBox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+                if (deleteBox) {
+                    deleteBox.checked = true;
+                    row.style.display = 'none';
+                } else {
+                    const allRows = document.querySelectorAll('#itemsTable tbody .item-row');
+                    if (allRows.length > 1) {
+                        row.remove();
+                    } else {
+                        row.querySelectorAll('input, select').forEach(el => {
+                            if (el.type !== 'hidden') el.value = '';
+                        });
+                    }
+                }
+                recalculateTotals();
+            });
+        }
+    }
+
+    document.querySelectorAll('.item-row').forEach(hookRowEvents);
+    recalculateTotals();
+
+    // Add another item row dynamically
+    const addMoreBtn = document.getElementById('addMoreBtn');
+    if (addMoreBtn) {
+        addMoreBtn.addEventListener('click', () => {
+            const totalFormsInput = document.querySelector('input[name$="-TOTAL_FORMS"]');
+            if (!totalFormsInput) return;
+            const currentCount = parseInt(totalFormsInput.value);
+            const tbody = document.querySelector('#itemsTable tbody');
+            const rows = tbody.querySelectorAll('.item-row');
+            if (rows.length === 0) return;
+            const lastRow = rows[rows.length - 1];
+            const newRow = lastRow.cloneNode(true);
+
+            newRow.style.display = '';
+            // Replace form index in name, id, for attributes
+            const regex = new RegExp(`-${currentCount - 1}-`, 'g');
+            newRow.innerHTML = newRow.innerHTML.replace(regex, `-${currentCount}-`);
+
+            newRow.querySelectorAll('input, select').forEach(el => {
+                if (el.type === 'checkbox') {
+                    el.checked = false;
+                } else if (el.name && el.name.endsWith('-id')) {
+                    el.value = '';
+                } else {
+                    el.value = '';
+                }
+                el.classList.remove('is-invalid');
+            });
+            newRow.querySelectorAll('.text-danger').forEach(el => el.remove());
+            const rowTotal = newRow.querySelector('.row-total');
+            if (rowTotal) rowTotal.textContent = '₹0.00';
+
+            tbody.appendChild(newRow);
+            totalFormsInput.value = currentCount + 1;
+            hookRowEvents(newRow);
+            recalculateTotals();
+        });
+    }
+
+    // Prevent double form submit
+    const dispatchForm = document.getElementById('dispatchForm');
+    const saveBtn = document.getElementById('saveDispatchBtn');
+    if (dispatchForm && saveBtn) {
+        dispatchForm.addEventListener('submit', () => {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Processing Dispatch...';
+        });
+    }
+</script>
+{% endblock %}
+

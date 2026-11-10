@@ -1,0 +1,88 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Take Daily Roll Call - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'workers:attendance_list' %}?date={{ selected_date }}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">Take Daily Attendance Muster Roll</h5>
+                        <small class="text-muted">Date: <strong>{{ selected_date }}</strong></small>
+                    </div>
+                </div>
+                <form method="get" class="d-flex align-items-center gap-1">
+                    <input type="date" name="date" value="{{ selected_date }}" class="form-control form-control-sm" style="width: 150px;">
+                    <button type="submit" class="btn btn-sm btn-light border">Change Date</button>
+                </form>
+            </div>
+            <div class="card-body p-4">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="date" value="{{ selected_date }}">
+                    <input type="hidden" name="save_bulk" value="1">
+
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Worker</th>
+                                    <th>Skill</th>
+                                    <th style="width: 240px;">Attendance Status</th>
+                                    <th style="width: 240px;">Assigned Site / Factory</th>
+                                    <th>Daily Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in worker_rows %}
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ row.worker.name }}</div>
+                                        <small class="text-muted">{{ row.worker.phone|default:"" }}</small>
+                                    </td>
+                                    <td><span class="badge bg-secondary-subtle text-secondary">{{ row.worker.get_worker_type_display }}</span></td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm w-100" role="group">
+                                            <input type="radio" class="btn-check" name="status_{{ row.worker.id }}" id="p_{{ row.worker.id }}" value="Present" {% if row.status == 'Present' %}checked{% endif %}>
+                                            <label class="btn btn-outline-success" for="p_{{ row.worker.id }}">Present</label>
+
+                                            <input type="radio" class="btn-check" name="status_{{ row.worker.id }}" id="h_{{ row.worker.id }}" value="Half Day" {% if row.status == 'Half Day' %}checked{% endif %}>
+                                            <label class="btn btn-outline-warning text-dark" for="h_{{ row.worker.id }}">Half</label>
+
+                                            <input type="radio" class="btn-check" name="status_{{ row.worker.id }}" id="a_{{ row.worker.id }}" value="Absent" {% if row.status == 'Absent' %}checked{% endif %}>
+                                            <label class="btn btn-outline-danger" for="a_{{ row.worker.id }}">Absent</label>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <select name="project_{{ row.worker.id }}" class="form-select form-select-sm">
+                                            <option value="">Factory Plant</option>
+                                            {% for p in projects %}
+                                                <option value="{{ p.id }}" {% if row.project_id == p.id %}selected{% endif %}>{{ p.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="text" name="notes_{{ row.worker.id }}" value="{{ row.notes }}" class="form-control form-control-sm" placeholder="Optional notes">
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center text-muted py-4">No active workers found. Add workers first.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3 mt-4">
+                        <a href="{% url 'workers:attendance_list' %}?date={{ selected_date }}" class="btn btn-light border px-4">Cancel</a>
+                        <button type="submit" class="btn btn-brick px-4">Save Daily Muster Roll</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

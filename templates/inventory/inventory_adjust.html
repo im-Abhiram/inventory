@@ -1,0 +1,66 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Stock Adjustment - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'inventory:inventory_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">Record Factory Stock Adjustment</h5>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-info small mb-3">
+                    <i class="bi bi-info-circle me-1"></i> Stock adjustments create an immutable audit record in the stock transaction ledger. Negative balances are strictly prevented.
+                </div>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger small">{{ form.non_field_errors.0 }}</div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Product <span class="text-danger">*</span></label>
+                        {{ form.product }}
+                        {% if form.product.errors %}<div class="text-danger small mt-1">{{ form.product.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Adjustment Type <span class="text-danger">*</span></label>
+                            {{ form.adjustment_type }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Quantity <span class="text-danger">*</span></label>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}<div class="text-danger small mt-1">{{ form.quantity.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Effective Date <span class="text-danger">*</span></label>
+                        {{ form.date }}
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small">Reason / Justification <span class="text-danger">*</span></label>
+                        {{ form.reason }}
+                        {% if form.reason.errors %}<div class="text-danger small mt-1">{{ form.reason.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'inventory:inventory_list' %}" class="btn btn-light border px-4">Cancel</a>
+                        <button type="submit" class="btn btn-brick px-4">Apply Stock Adjustment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

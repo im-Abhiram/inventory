@@ -1,0 +1,81 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Daily Log - {{ entry.date }} - {{ entry.project.name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'construction:project_detail' entry.project.id %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <div>
+                        <h5 class="fw-bold mb-0 text-dark">Daily Work Entry: {{ entry.date|date:"d M Y" }}</h5>
+                        <small class="text-muted">{{ entry.project.name }} ({{ entry.project.client.name }})</small>
+                    </div>
+                </div>
+                <span class="badge bg-warning text-dark">{{ entry.work_progress_percentage }}% Progress</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3 mb-4">
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded-3">
+                            <div class="text-muted small">Workers Present:</div>
+                            <div class="fs-4 fw-bold text-dark">{{ entry.number_of_workers }}</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 bg-light rounded-3">
+                            <div class="text-muted small">Recorded By:</div>
+                            <div class="fs-6 fw-semibold text-dark">{{ entry.created_by.username|default:"Admin" }}</div>
+                            <small class="text-muted">{{ entry.created_at|date:"d M Y H:i" }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark">Work Completed Today:</h6>
+                <div class="p-3 bg-light rounded-3 mb-4">
+                    <p class="mb-0 text-secondary">{{ entry.work_completed_today }}</p>
+                </div>
+
+                {% if entry.notes %}
+                <h6 class="fw-bold text-dark">Notes:</h6>
+                <div class="p-3 bg-light rounded-3 mb-4">
+                    <p class="mb-0 text-secondary">{{ entry.notes }}</p>
+                </div>
+                {% endif %}
+
+                <h6 class="fw-bold text-dark mb-3">Materials Consumed in this Shift:</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle small mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity Consumed</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usage in entry.material_usages.all %}
+                            <tr>
+                                <td class="fw-semibold">{{ usage.product.name }}</td>
+                                <td class="fw-bold text-danger">{{ usage.quantity_used|intcomma }} {{ usage.unit }}</td>
+                                <td class="text-muted">{{ usage.notes|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-center text-muted py-2">No material consumption recorded for this date.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-3 mt-4">
+                    <a href="{% url 'construction:project_detail' entry.project.id %}" class="btn btn-light border px-4">Back to Project</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

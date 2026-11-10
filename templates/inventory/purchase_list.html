@@ -1,0 +1,151 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Product Purchases - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Purchases of Products</h3>
+        <p class="text-muted small mb-0">Record incoming purchases from suppliers that increase factory inventory</p>
+    </div>
+    {% if is_superadmin %}
+    <a href="{% url 'inventory:purchase_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-cart-plus"></i> Record Product Purchase
+    </a>
+    {% endif %}
+</div>
+
+<!-- Total Summary Banner -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Total Purchase Volume</div>
+            <div class="kpi-value mt-1 text-primary">{{ total_qty|intcomma }} <span class="fs-6 text-muted">units</span></div>
+            <small class="text-muted">Total units added to factory stock via purchases</small>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="card card-kpi p-3 h-100 border-start border-danger border-3">
+            <div class="kpi-title text-danger">Total Purchase Expense</div>
+            <div class="kpi-value mt-1 text-danger">₹{{ total_cost|intcomma }}</div>
+            <small class="text-muted">Aggregate purchase procurement cost</small>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-3">
+            <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search supplier, bill #, purchase #...">
+        </div>
+        <div class="col-md-3">
+            <select name="product" class="form-select">
+                <option value="">All Products</option>
+                {% for p in products %}
+                    <option value="{{ p.id }}" {% if selected_product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">All Payment Statuses</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" title="From Date">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" title="To Date">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i></button>
+        </div>
+    </form>
+</div>
+
+<!-- Purchases Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Purchase #</th>
+                    <th>Date</th>
+                    <th>Supplier / Vendor</th>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Cost / Unit</th>
+                    <th>Total Amount</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pur in page_obj %}
+                <tr>
+                    <td>
+                        <a href="{% url 'inventory:purchase_detail' pur.id %}" class="fw-bold text-dark text-decoration-none">
+                            {{ pur.purchase_number }}
+                        </a>
+                    </td>
+                    <td class="text-nowrap">{{ pur.purchase_date|date:"d M Y" }}</td>
+                    <td>
+                        <div class="fw-semibold text-dark">{{ pur.supplier_name }}</div>
+                        <small class="text-muted">{{ pur.supplier_phone|default:"" }}</small>
+                    </td>
+                    <td>
+                        <span class="fw-medium">{{ pur.product.name }}</span>
+                    </td>
+                    <td class="fw-bold text-success">+{{ pur.quantity|intcomma }} {{ pur.product.unit }}</td>
+                    <td>₹{{ pur.unit_price|intcomma }}</td>
+                    <td class="fw-bold text-dark">₹{{ pur.total_amount|intcomma }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ pur.payment_method }}</span></td>
+                    <td>
+                        {% if pur.payment_status == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif pur.payment_status == 'Partially Paid' %}
+                            <span class="badge bg-warning text-dark">Partial</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unpaid</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'inventory:purchase_detail' pur.id %}" class="btn btn-sm btn-outline-secondary" title="View Voucher">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="10" class="text-center text-muted py-4">No product purchases recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} purchases</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&product={{ selected_product }}&status={{ selected_status }}&date_from={{ date_from }}&date_to={{ date_to }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&product={{ selected_product }}&status={{ selected_status }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&product={{ selected_product }}&status={{ selected_status }}&date_from={{ date_from }}&date_to={{ date_to }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

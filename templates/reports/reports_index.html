@@ -1,0 +1,119 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Business Reports &amp; Analytics - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Business Intelligence &amp; Management Reports</h3>
+        <p class="text-muted small mb-0">Audited operational, stock, financial, and construction site analytics</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Factory & Stock Reports -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 p-4">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-archive"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Inventory Reports</h5>
+                    <small class="text-muted">Stock holding &amp; ledgers</small>
+                </div>
+            </div>
+            <p class="small text-secondary mb-4">Check current plant stock, track items falling below minimum safety levels, and audit all physical stock adjustments.</p>
+            <div class="mt-auto d-flex flex-column gap-2">
+                <a href="{% url 'reports:inventory_report' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-boxes me-2"></i> Factory Stock Report</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                <a href="{% url 'reports:stock_movement_report' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-clock-history me-2"></i> Stock Movement Ledger</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                <a href="{% url 'reports:dispatch_report' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-truck me-2"></i> Dispatch Consignments Report</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production Reports -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 p-4">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-gear-wide-connected"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Production Reports</h5>
+                    <small class="text-muted">Manufacturing shifts &amp; outputs</small>
+                </div>
+            </div>
+            <p class="small text-secondary mb-4">Daily shift outputs, product-wise breakdown, machine shift logs, and worker productivity statistics.</p>
+            <div class="mt-auto d-flex flex-column gap-2">
+                <a href="{% url 'reports:production_report' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-bar-chart me-2"></i> Production Analytics</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                <a href="{% url 'production:production_list' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-task me-2"></i> Shift Log Ledger</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Reports -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 p-4">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon-box bg-danger bg-opacity-10 text-danger">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Financial Reports</h5>
+                    <small class="text-muted">Revenue, expenses &amp; cashflow</small>
+                </div>
+            </div>
+            <p class="small text-secondary mb-4">Audit consignment billing revenue, cash collections, operational expenses, and net monthly operational cashflow.</p>
+            <div class="mt-auto d-flex flex-column gap-2">
+                <a href="{% url 'reports:financial_summary_report' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-cash-stack me-2"></i> Financial Statement</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+                <a href="{% url 'reports:credit_report' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-person-exclamation me-2"></i> Client Credit Risk Audit</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Construction Reports -->
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 p-4">
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <div class="kpi-icon-box bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-building"></i>
+                </div>
+                <div>
+                    <h5 class="fw-bold mb-0 text-dark">Construction Reports</h5>
+                    <small class="text-muted">Client site material usage</small>
+                </div>
+            </div>
+            <p class="small text-secondary mb-4">Audit materials delivered to client sites, on-site consumption, remaining holdings, and worker days.</p>
+            <div class="mt-auto d-flex flex-column gap-2">
+                <a href="{% url 'reports:construction_report' %}" class="btn btn-outline-dark btn-sm text-start d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-graph-up me-2"></i> Project Progress &amp; Materials</span>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

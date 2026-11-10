@@ -1,0 +1,88 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Payment {{ payment.payment_number }} - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'finance:payment_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">{{ payment.payment_number }}</h5>
+                </div>
+                <a href="{% url 'finance:payment_receipt' payment.id %}" target="_blank" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-printer"></i> Print Receipt
+                </a>
+            </div>
+            <div class="card-body p-4">
+                <div class="text-center p-3 mb-4 bg-light rounded-3">
+                    <div class="text-muted small fw-semibold">COLLECTED AMOUNT</div>
+                    <div class="fs-1 fw-bold text-success">₹{{ payment.amount|intcomma }}</div>
+                    <div class="fw-medium text-dark">{{ payment.client.name }}</div>
+                </div>
+
+                <ul class="list-group list-group-flush mb-4 small">
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Payment Date:</span>
+                        <span class="fw-semibold">{{ payment.payment_date|date:"l, d F Y" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Payment Method:</span>
+                        <span class="badge bg-light text-dark border">{{ payment.payment_method }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Reference / Cheque # / UTR:</span>
+                        <span class="font-monospace fw-semibold">{{ payment.reference_number|default:"-" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Cashier / Recorded By:</span>
+                        <span class="fw-semibold">{{ payment.recorded_by.username|default:"Admin" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Recorded Timestamp:</span>
+                        <span class="fw-semibold">{{ payment.created_at|date:"d M Y H:i" }}</span>
+                    </li>
+                </ul>
+
+                {% if payment.allocations.exists %}
+                <h6 class="fw-bold text-dark mb-2">Dispatch Invoices Allocated:</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Dispatch #</th>
+                                <th>Date</th>
+                                <th class="text-end">Allocated</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alloc in payment.allocations.all %}
+                            <tr>
+                                <td><a href="{% url 'dispatch:dispatch_detail' alloc.dispatch.id %}">{{ alloc.dispatch.dispatch_number }}</a></td>
+                                <td>{{ alloc.dispatch.dispatch_date|date:"d M Y" }}</td>
+                                <td class="text-end fw-bold text-success">₹{{ alloc.amount_allocated|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+
+                {% if payment.notes %}
+                <div class="p-3 bg-light rounded-3 mb-3">
+                    <div class="small fw-bold text-secondary mb-1">Notes:</div>
+                    <div class="small text-dark">{{ payment.notes }}</div>
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                    <a href="{% url 'clients:client_detail' payment.client.id %}?tab=payments" class="btn btn-light border px-4">View Client Account</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,127 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Financial Summary Report - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'reports:reports_index' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">Financial &amp; Cashflow Summary</h3>
+            <p class="text-muted small mb-0">Consignment billing, payment collections, expenses, and net cash</p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer me-1"></i> Print</button>
+        <a href="?export=csv&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-dark btn-sm"><i class="bi bi-download me-1"></i> Export CSV</a>
+    </div>
+</div>
+
+<!-- Date Filter -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white no-print">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-md-5 d-flex align-items-center gap-2">
+            <label class="small text-muted fw-semibold">From:</label>
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control" required>
+        </div>
+        <div class="col-md-5 d-flex align-items-center gap-2">
+            <label class="small text-muted fw-semibold">To:</label>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control" required>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100">Update Period</button>
+        </div>
+    </form>
+</div>
+
+<!-- Metric Strip -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Billed Dispatches</div>
+            <div class="kpi-value mt-1 text-primary">₹{{ total_revenue_billed|intcomma }}</div>
+            <small class="text-muted">Invoiced consignments in period</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100 border-start border-success border-3">
+            <div class="kpi-title text-success">Cash Collections</div>
+            <div class="kpi-value mt-1 text-success">₹{{ total_payments_collected|intcomma }}</div>
+            <small class="text-muted">Actual payments received in period</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100 border-start border-danger border-3">
+            <div class="kpi-title text-danger">Operating Expenses</div>
+            <div class="kpi-value mt-1 text-danger">₹{{ total_expenses_incurred|intcomma }}</div>
+            <small class="text-muted">Costs paid out in period</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Net Operating Cash</div>
+            <div class="kpi-value mt-1 {% if net_operating_cash >= 0 %}text-success{% else %}text-danger{% endif %}">
+                ₹{{ net_operating_cash|intcomma }}
+            </div>
+            <small class="text-muted">Collections minus Expenses</small>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Category Breakdown -->
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <h6 class="fw-bold text-dark mb-3">Operating Expense Breakdown by Category</h6>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-center">Vouchers</th>
+                            <th class="text-end">Total Spent (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in category_expenses %}
+                        <tr>
+                            <td class="fw-semibold text-dark">{{ cat.category__name }}</td>
+                            <td class="text-center text-muted">{{ cat.count }}</td>
+                            <td class="text-end fw-bold text-danger">₹{{ cat.total|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">No expenses in this period.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="2">Total Operating Costs:</th>
+                            <th class="text-end text-danger fw-bold fs-6">₹{{ total_expenses_incurred|intcomma }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 p-4 bg-light">
+            <h6 class="fw-bold text-dark mb-3">Period Financial Audit Note</h6>
+            <p class="small text-secondary">
+                Period: <strong>{{ date_from }}</strong> to <strong>{{ date_to }}</strong>.
+            </p>
+            <ul class="small text-secondary ps-3 mb-0">
+                <li class="mb-2">Dispatches billed represent total revenue invoiced to customers.</li>
+                <li class="mb-2">Cash collections reflect realized liquidity entering business accounts.</li>
+                <li class="mb-2">Operating expenses include plant diesel, worker daily wages, raw materials, electricity, and vehicle maintenance.</li>
+                <li>Net cashflow represents operational cash retention prior to capital investments and taxes.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

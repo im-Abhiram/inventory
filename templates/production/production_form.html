@@ -1,0 +1,86 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{% if is_edit %}Edit Production #{{ entry.id }}{% else %}Record Shift Production{% endif %} - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'production:production_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">{% if is_edit %}Edit Factory Production Entry #{{ entry.id }}{% else %}Record Factory Shift Production{% endif %}</h5>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-{% if is_edit %}warning{% else %}primary{% endif %} small mb-3">
+                    <i class="bi bi-info-circle me-1"></i> {% if is_edit %}Modifying quantity will automatically recalculate and adjust factory inventory stock.{% else %}Saving this entry immediately credits factory inventory and writes a stock transaction.{% endif %}
+                </div>
+
+                <form method="post" id="prodForm" novalidate>
+                    {% csrf_token %}
+                    {{ form.submission_token }}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger small">{{ form.non_field_errors.0 }}</div>
+                    {% endif %}
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Production Date <span class="text-danger">*</span></label>
+                            {{ form.production_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Shift <span class="text-danger">*</span></label>
+                            {{ form.shift }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Product Manufactured <span class="text-danger">*</span></label>
+                        {{ form.product }}
+                        {% if form.product.errors %}<div class="text-danger small mt-1">{{ form.product.errors.0 }}</div>{% endif %}
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Quantity Produced <span class="text-danger">*</span></label>
+                            {{ form.quantity }}
+                            {% if form.quantity.errors %}<div class="text-danger small mt-1">{{ form.quantity.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Worker Count on Shift <span class="text-danger">*</span></label>
+                            {{ form.worker_count }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small">Notes / Batch Details</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'production:production_list' %}" class="btn btn-light border px-4">Cancel</a>
+                        <button type="submit" id="submitBtn" class="btn btn-brick px-4">{% if is_edit %}Save Changes &amp; Update Stock{% else %}Save &amp; Increase Stock{% endif %}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Prevent duplicate button click
+    const form = document.getElementById('prodForm');
+    const btn = document.getElementById('submitBtn');
+    if (form && btn) {
+        form.addEventListener('submit', () => {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Saving...';
+        });
+    }
+</script>
+{% endblock %}
+

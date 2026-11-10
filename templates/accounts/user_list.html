@@ -1,0 +1,132 @@
+{% extends 'base/base.html' %}
+
+{% block title %}User Management - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">User Account Administration</h3>
+        <p class="text-muted small mb-0">Manage system users, credentials, and access roles</p>
+    </div>
+    <a href="{% url 'accounts:user_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-person-plus"></i> Create New User
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search by username, name, email...">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <select name="role" class="form-select">
+                <option value="">All Roles</option>
+                <option value="superadmin" {% if role_filter == 'superadmin' %}selected{% endif %}>Super Admin</option>
+                <option value="accountant" {% if role_filter == 'accountant' %}selected{% endif %}>Accountant</option>
+                <option value="owner" {% if role_filter == 'owner' %}selected{% endif %}>Owner</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Users Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Name</th>
+                    <th>Email / Phone</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Last Login</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in page_obj %}
+                <tr>
+                    <td>
+                        <span class="fw-bold text-dark">{{ u.username }}</span>
+                        {% if u == request.user %}
+                            <span class="badge bg-light text-dark border ms-1">You</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.get_full_name|default:"-" }}</td>
+                    <td>
+                        <div>{{ u.email|default:"-" }}</div>
+                        <small class="text-muted">{{ u.profile.phone|default:"" }}</small>
+                    </td>
+                    <td>
+                        {% if u.profile.role == 'superadmin' %}
+                            <span class="badge badge-role-superadmin">Super Admin</span>
+                        {% elif u.profile.role == 'accountant' %}
+                            <span class="badge badge-role-accountant">Accountant</span>
+                        {% else %}
+                            <span class="badge badge-role-owner">Owner</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.is_active %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ u.last_login|date:"d M Y H:i"|default:"Never" }}</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'accounts:user_edit' u.id %}" class="btn btn-outline-secondary" title="Edit User">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <a href="{% url 'accounts:user_change_password' u.id %}" class="btn btn-outline-secondary" title="Change Password">
+                                <i class="bi bi-key"></i>
+                            </a>
+                            {% if u != request.user %}
+                            <form method="post" action="{% url 'accounts:user_toggle_status' u.id %}" class="d-inline" onsubmit="return confirm('Toggle status for {{ u.username }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-{% if u.is_active %}danger{% else %}success{% endif %}" title="{% if u.is_active %}Deactivate{% else %}Activate{% endif %}">
+                                    <i class="bi bi-power"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No users found matching search criteria.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} users</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&role={{ role_filter }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&role={{ role_filter }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&role={{ role_filter }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

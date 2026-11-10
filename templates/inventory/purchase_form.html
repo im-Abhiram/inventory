@@ -1,0 +1,139 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Record Product Purchase - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'inventory:purchase_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">Record Product Purchase</h5>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="alert alert-success small mb-4">
+                    <i class="bi bi-info-circle me-1"></i> Saving this purchase immediately increases factory plant inventory for the selected product and registers a purchase transaction in the stock ledger.
+                </div>
+
+                <form method="post" id="purchaseForm" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger small">{{ form.non_field_errors.0 }}</div>
+                    {% endif %}
+
+                    <!-- Supplier & Invoice Details -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Purchase Date <span class="text-danger">*</span></label>
+                            {{ form.purchase_date }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Supplier / Vendor Name <span class="text-danger">*</span></label>
+                            {{ form.supplier_name }}
+                            {% if form.supplier_name.errors %}<div class="text-danger small mt-1">{{ form.supplier_name.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Supplier Phone</label>
+                            {{ form.supplier_phone }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Vendor Invoice / Bill No.</label>
+                            {{ form.invoice_number }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Delivery Vehicle No.</label>
+                            {{ form.vehicle_number }}
+                        </div>
+                    </div>
+
+                    <!-- Product & Quantity -->
+                    <div class="p-3 bg-light rounded-3 border mb-3">
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label class="form-label fw-semibold small">Product Purchased <span class="text-danger">*</span></label>
+                                {{ form.product }}
+                                {% if form.product.errors %}<div class="text-danger small mt-1">{{ form.product.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold small">Quantity <span class="text-danger">*</span></label>
+                                {{ form.quantity }}
+                                {% if form.quantity.errors %}<div class="text-danger small mt-1">{{ form.quantity.errors.0 }}</div>{% endif %}
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold small">Purchase Cost / Unit (₹) <span class="text-danger">*</span></label>
+                                {{ form.unit_price }}
+                                {% if form.unit_price.errors %}<div class="text-danger small mt-1">{{ form.unit_price.errors.0 }}</div>{% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end align-items-center mt-3 pt-2 border-top">
+                            <div class="fw-bold text-dark fs-5">
+                                Estimated Total Amount: <span class="text-primary" id="totalCalc">₹0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Terms -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Payment Method <span class="text-danger">*</span></label>
+                            {{ form.payment_method }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Payment Status <span class="text-danger">*</span></label>
+                            {{ form.payment_status }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold small">Purchase Remarks / Quality Notes</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'inventory:purchase_list' %}" class="btn btn-light border px-4">Cancel</a>
+                        <button type="submit" id="savePurBtn" class="btn btn-brick px-4">Save Purchase &amp; Add to Stock</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const qtyInput = document.getElementById('id_purchase_qty');
+    const priceInput = document.getElementById('id_purchase_price');
+    const totalSpan = document.getElementById('totalCalc');
+
+    function updatePurchaseTotal() {
+        const qty = parseFloat(qtyInput ? qtyInput.value : 0) || 0;
+        const price = parseFloat(priceInput ? priceInput.value : 0) || 0;
+        const total = qty * price;
+        if (totalSpan) {
+            totalSpan.textContent = '₹' + total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+    }
+
+    if (qtyInput) qtyInput.addEventListener('input', updatePurchaseTotal);
+    if (priceInput) priceInput.addEventListener('input', updatePurchaseTotal);
+    updatePurchaseTotal();
+
+    const form = document.getElementById('purchaseForm');
+    const btn = document.getElementById('savePurBtn');
+    if (form && btn) {
+        form.addEventListener('submit', () => {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Recording Purchase...';
+        });
+    }
+</script>
+{% endblock %}
+

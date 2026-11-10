@@ -1,0 +1,75 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Client Credit Report - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'reports:reports_index' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">Client Credit &amp; Outstanding Debt Report</h3>
+            <p class="text-muted small mb-0">Complete credit risk and customer balance statement</p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer me-1"></i> Print</button>
+        <a href="?export=csv" class="btn btn-dark btn-sm"><i class="bi bi-download me-1"></i> Export CSV</a>
+    </div>
+</div>
+
+<!-- Report Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Client Code</th>
+                    <th>Client Name</th>
+                    <th>Contact Phone</th>
+                    <th class="text-end">Credit Limit</th>
+                    <th class="text-end">Outstanding Debt</th>
+                    <th class="text-end">Available Credit</th>
+                    <th>Risk Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in clients %}
+                <tr>
+                    <td class="font-monospace fw-semibold">{{ c.code }}</td>
+                    <td class="fw-bold">{{ c.name }}</td>
+                    <td>{{ c.phone }}</td>
+                    <td class="text-end">₹{{ c.credit_limit|intcomma }}</td>
+                    <td class="text-end fw-bold {% if c.is_credit_exceeded %}text-danger fs-6{% else %}text-dark{% endif %}">
+                        ₹{{ c.outstanding_balance|intcomma }}
+                    </td>
+                    <td class="text-end {% if c.available_credit < 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
+                        ₹{{ c.available_credit|intcomma }}
+                    </td>
+                    <td>
+                        {% if c.is_credit_exceeded %}
+                            <span class="badge bg-danger">EXCEEDED</span>
+                        {% elif c.outstanding_balance > 0 %}
+                            <span class="badge bg-warning text-dark">Within Limit</span>
+                        {% else %}
+                            <span class="badge bg-success">Clear</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No client records found.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light fs-6">
+                <tr>
+                    <th colspan="3" class="text-end">Grand Totals:</th>
+                    <th class="text-end text-primary">₹{{ total_credit_limit|intcomma }}</th>
+                    <th class="text-end text-danger fw-bold">₹{{ total_outstanding|intcomma }}</th>
+                    <th colspan="2"></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

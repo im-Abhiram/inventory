@@ -1,0 +1,128 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Dispatch Consignments Report - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'reports:reports_index' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">Dispatch Consignments Report</h3>
+            <p class="text-muted small mb-0">Analysis of shipped consignments, delivery billing, and payment recovery</p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer me-1"></i> Print</button>
+        <a href="?export=csv&client={{ selected_client }}&status={{ selected_status }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-dark btn-sm"><i class="bi bi-download me-1"></i> Export CSV</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white no-print">
+    <form method="get" class="row g-2">
+        <div class="col-md-4">
+            <select name="client" class="form-select">
+                <option value="">All Clients</option>
+                {% for c in clients %}
+                    <option value="{{ c.id }}" {% if selected_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="">All Payment Statuses</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100">Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Summary Strip -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Total Invoiced Dispatches</div>
+            <div class="kpi-value mt-1 text-primary">₹{{ total_amount|intcomma }}</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card card-kpi p-3 h-100 border-start border-success border-3">
+            <div class="kpi-title text-success">Recovered Payments</div>
+            <div class="kpi-value mt-1 text-success">₹{{ total_paid|intcomma }}</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card card-kpi p-3 h-100 border-start border-danger border-3">
+            <div class="kpi-title text-danger">Pending Balance Due</div>
+            <div class="kpi-value mt-1 text-danger">₹{{ total_due|intcomma }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Dispatches Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle mb-0 small">
+            <thead class="table-light">
+                <tr>
+                    <th>Dispatch #</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Project Site</th>
+                    <th>Vehicle #</th>
+                    <th class="text-end">Total Amount (₹)</th>
+                    <th class="text-end">Paid (₹)</th>
+                    <th class="text-end">Balance Due (₹)</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in dispatches %}
+                <tr>
+                    <td class="font-monospace fw-semibold"><a href="{% url 'dispatch:dispatch_detail' d.id %}">{{ d.dispatch_number }}</a></td>
+                    <td>{{ d.dispatch_date|date:"d M Y" }}</td>
+                    <td class="fw-semibold">{{ d.client.name }}</td>
+                    <td>{{ d.project.name|default:"Direct Supply" }}</td>
+                    <td>{{ d.vehicle_number|default:"-" }}</td>
+                    <td class="text-end fw-bold">₹{{ d.total_amount|intcomma }}</td>
+                    <td class="text-end text-success">₹{{ d.paid_amount|intcomma }}</td>
+                    <td class="text-end text-danger fw-semibold">₹{{ d.outstanding_amount|intcomma }}</td>
+                    <td>
+                        {% if d.payment_status == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif d.payment_status == 'Partially Paid' %}
+                            <span class="badge bg-warning text-dark">Partial</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unpaid</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No dispatches match your filter.</td></tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light fs-6">
+                <tr>
+                    <th colspan="5" class="text-end">Totals:</th>
+                    <th class="text-end text-primary fw-bold">₹{{ total_amount|intcomma }}</th>
+                    <th class="text-end text-success fw-bold">₹{{ total_paid|intcomma }}</th>
+                    <th class="text-end text-danger fw-bold">₹{{ total_due|intcomma }}</th>
+                    <th></th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

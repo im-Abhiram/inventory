@@ -1,0 +1,183 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Factory Inventory - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Factory Inventory Management</h3>
+        <p class="text-muted small mb-0">Live stock ledger calculated from opening stock, production, adjustments, and dispatches</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{% url 'inventory:purchase_list' %}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-cart-plus"></i> Product Purchases
+        </a>
+        <a href="{% url 'inventory:stock_transactions' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-clock-history"></i> Stock Movement Ledger
+        </a>
+        {% if is_superadmin %}
+        <a href="{% url 'inventory:inventory_adjust' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-sliders"></i> Record Stock Adjustment
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stock Status Overview Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-4">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-title">Total Finished Stock</div>
+                    <div class="kpi-value mt-1 text-success">{{ total_stock_count|intcomma }}</div>
+                    <small class="text-muted">Total units across all products</small>
+                </div>
+                <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-boxes"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-4">
+        <div class="card card-kpi p-3 h-100 border-start border-warning border-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-title text-warning-emphasis">Low Stock Warnings</div>
+                    <div class="kpi-value mt-1 text-warning-emphasis">{{ low_stock_count }}</div>
+                    <small class="text-muted">Products below minimum threshold</small>
+                </div>
+                <div class="kpi-icon-box bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-4">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="kpi-title">Formula Verification</div>
+                    <div class="small fw-semibold text-dark mt-2">Opening + Prod + Add - Disp - Ded</div>
+                    <small class="text-muted">Calculated automatically via DB ledger</small>
+                </div>
+                <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-calculator"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search product name, code...">
+            </div>
+        </div>
+        <div class="col-md-4">
+            <select name="status" class="form-select">
+                <option value="">All Stock Levels</option>
+                <option value="in_stock" {% if status_filter == 'in_stock' %}selected{% endif %}>Healthy Stock</option>
+                <option value="low" {% if status_filter == 'low' %}selected{% endif %}>Low Stock Only</option>
+                <option value="out" {% if status_filter == 'out' %}selected{% endif %}>Out of Stock</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Inventory Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Opening</th>
+                    <th>Production (+)</th>
+                    <th>Additions (+)</th>
+                    <th>Dispatch (-)</th>
+                    <th>Deductions (-)</th>
+                    <th>Current Stock</th>
+                    <th>Threshold</th>
+                    <th>Status</th>
+                    {% if is_superadmin %}<th class="text-end">Action</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in page_obj %}
+                <tr>
+                    <td><span class="badge bg-light text-dark border font-monospace">{{ inv.product.code }}</span></td>
+                    <td>
+                        <a href="{% url 'products:product_detail' inv.product.id %}" class="fw-bold text-dark text-decoration-none">
+                            {{ inv.product.name }}
+                        </a>
+                        <small class="text-muted d-block">{{ inv.product.unit }}</small>
+                    </td>
+                    <td>{{ inv.opening_stock|intcomma }}</td>
+                    <td class="text-primary fw-medium">+{{ inv.total_production|intcomma }}</td>
+                    <td class="text-success fw-medium">+{{ inv.total_additions|intcomma }}</td>
+                    <td class="text-danger fw-medium">-{{ inv.total_dispatch|intcomma }}</td>
+                    <td class="text-secondary fw-medium">-{{ inv.total_deductions|intcomma }}</td>
+                    <td>
+                        <span class="fs-6 fw-bold {% if inv.current_stock <= 0 %}text-danger{% elif inv.is_low_stock %}text-warning-emphasis{% else %}text-success{% endif %}">
+                            {{ inv.current_stock|intcomma }}
+                        </span>
+                    </td>
+                    <td class="text-muted small">{{ inv.product.minimum_stock_level|intcomma }}</td>
+                    <td>
+                        {% if inv.current_stock <= 0 %}
+                            <span class="badge bg-danger">Out of Stock</span>
+                        {% elif inv.is_low_stock %}
+                            <span class="badge bg-warning text-dark">Low Stock</span>
+                        {% else %}
+                            <span class="badge bg-success">In Stock</span>
+                        {% endif %}
+                    </td>
+                    {% if is_superadmin %}
+                    <td class="text-end">
+                        <a href="{% url 'inventory:inventory_adjust' %}?product={{ inv.product.id }}" class="btn btn-sm btn-outline-secondary" title="Adjust Stock">
+                            <i class="bi bi-sliders"></i>
+                        </a>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="11" class="text-center text-muted py-4">No inventory records found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} products</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&status={{ status_filter }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&status={{ status_filter }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&status={{ status_filter }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

@@ -1,0 +1,119 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Production Report - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'reports:reports_index' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">Production Analytics &amp; Reports</h3>
+            <p class="text-muted small mb-0">Production aggregated by product, shift, and date</p>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer me-1"></i> Print</button>
+        <a href="?export=csv&product={{ selected_product }}&shift={{ selected_shift }}&date_from={{ date_from }}&date_to={{ date_to }}" class="btn btn-dark btn-sm"><i class="bi bi-download me-1"></i> Export CSV</a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white no-print">
+    <form method="get" class="row g-2">
+        <div class="col-md-4">
+            <select name="product" class="form-select">
+                <option value="">All Products</option>
+                {% for p in products %}
+                    <option value="{{ p.id }}" {% if selected_product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="shift" class="form-select">
+                <option value="">All Shifts</option>
+                {% for val, label in shifts %}
+                    <option value="{{ val }}" {% if selected_shift == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100">Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Product Breakdown Summary -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3 p-3 h-100">
+            <h6 class="fw-bold text-dark mb-3">Product-wise Output Breakdown</h6>
+            <table class="table table-sm table-borderless">
+                <thead>
+                    <tr class="text-muted small border-bottom">
+                        <th>Product</th>
+                        <th class="text-center">Shifts</th>
+                        <th class="text-end">Units Produced</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in product_breakdown %}
+                    <tr>
+                        <td class="fw-semibold">{{ p.product__name }}</td>
+                        <td class="text-center text-muted">{{ p.total_shifts }}</td>
+                        <td class="text-end fw-bold text-primary">{{ p.total_produced|intcomma }} {{ p.product__unit }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted py-2">No production recorded in this period.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3 p-4 h-100 bg-light d-flex flex-column justify-content-center text-center">
+            <div class="text-muted small fw-semibold">TOTAL PRODUCTION IN PERIOD</div>
+            <div class="fs-1 fw-bold text-dark my-2">{{ total_qty|intcomma }}</div>
+            <div class="small text-muted">Finished units manufactured across all shifts</div>
+        </div>
+    </div>
+</div>
+
+<!-- Shift Log Entries -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-bordered align-middle mb-0 small">
+            <thead class="table-light">
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th class="text-end">Units Produced</th>
+                    <th>Shift</th>
+                    <th>Workers</th>
+                    <th>Batch Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td>{{ e.production_date|date:"d M Y" }}</td>
+                    <td class="fw-semibold">{{ e.product.name }}</td>
+                    <td class="text-end fw-bold text-primary">{{ e.quantity|intcomma }} {{ e.product.unit }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ e.shift }}</span></td>
+                    <td>{{ e.worker_count }}</td>
+                    <td>{{ e.notes|default:"-" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No entries match your filter.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

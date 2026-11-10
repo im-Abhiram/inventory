@@ -1,0 +1,167 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Accountant Dashboard - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Finance &amp; Accounts Portal</h3>
+        <p class="text-muted small mb-0">Client balances, collections, payment history, and expense logging</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'finance:payment_create' %}" class="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-cash"></i> Record Client Payment
+        </a>
+        <a href="{% url 'finance:expense_create' %}" class="btn btn-secondary btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-receipt"></i> Log Expense
+        </a>
+    </div>
+</div>
+
+<!-- Financial KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100 border-start border-danger border-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title text-danger">Total Outstanding Credit</div>
+                    <div class="kpi-value mt-1 text-danger">₹{{ total_outstanding|intcomma }}</div>
+                    <small class="text-muted">Receivables from clients</small>
+                </div>
+                <div class="kpi-icon-box bg-danger bg-opacity-10 text-danger">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100 border-start border-success border-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title text-success">Today's Collections</div>
+                    <div class="kpi-value mt-1 text-success">₹{{ today_payments|intcomma }}</div>
+                    <small class="text-muted">Recorded today</small>
+                </div>
+                <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Month-To-Date Payments</div>
+                    <div class="kpi-value mt-1">₹{{ month_payments|intcomma }}</div>
+                    <small class="text-muted">Current calendar month</small>
+                </div>
+                <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Month Operating Expenses</div>
+                    <div class="kpi-value mt-1">₹{{ month_expenses|intcomma }}</div>
+                    <small class="text-muted">Lifetime: ₹{{ total_expenses|intcomma }}</small>
+                </div>
+                <div class="kpi-icon-box bg-secondary bg-opacity-10 text-secondary">
+                    <i class="bi bi-receipt"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Client Outstanding Balances -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-exclamation-triangle text-danger me-2"></i>Top Client Outstanding Balances</h6>
+                <a href="{% url 'finance:credit_management' %}" class="btn btn-sm btn-light py-0">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Credit Limit</th>
+                            <th>Outstanding</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for acc in clients_with_balance %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'clients:client_detail' acc.client.id %}?tab=payments" class="fw-semibold text-decoration-none">
+                                    {{ acc.client.name }}
+                                </a>
+                                <div class="text-muted small">{{ acc.client.phone }}</div>
+                            </td>
+                            <td>₹{{ acc.client.credit_limit|intcomma }}</td>
+                            <td class="fw-bold text-danger">₹{{ acc.current_balance|intcomma }}</td>
+                            <td>
+                                <a href="{% url 'finance:payment_create' %}?client={{ acc.client.id }}" class="btn btn-sm btn-outline-success py-0 px-2">
+                                    <i class="bi bi-plus"></i> Collect
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No outstanding client balances</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Payments -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-clock-history text-success me-2"></i>Recent Payment Entries</h6>
+                <a href="{% url 'finance:payment_list' %}" class="btn btn-sm btn-light py-0">All Payments</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Receipt</th>
+                            <th>Client</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pay in recent_payments %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'finance:payment_receipt' pay.id %}" class="fw-semibold text-decoration-none">
+                                    {{ pay.payment_number }}
+                                </a>
+                                <div class="text-muted small">{{ pay.payment_date|date:"d M Y" }}</div>
+                            </td>
+                            <td class="text-truncate" style="max-width: 130px;">{{ pay.client.name }}</td>
+                            <td class="fw-bold text-success">₹{{ pay.amount|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted py-3">No recent payments recorded</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

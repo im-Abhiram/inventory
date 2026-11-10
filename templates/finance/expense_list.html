@@ -1,0 +1,112 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Operating Expenses - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Factory Operating Expenses</h3>
+        <p class="text-muted small mb-0">Track fuel, wages, raw materials, electricity, maintenance, and vehicle upkeep</p>
+    </div>
+    {% if can_write %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'finance:expense_category_list' %}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-tag"></i> Categories
+        </a>
+        <a href="{% url 'finance:expense_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-plus-circle"></i> Log Expense
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Total Banner -->
+<div class="alert alert-light border shadow-sm py-2 px-3 mb-4 d-flex justify-content-between align-items-center">
+    <div class="text-secondary small">
+        <i class="bi bi-receipt me-1"></i> Filtered Operating Expenses:
+        <span class="fs-6 fw-bold text-dark ms-1">₹{{ total_expense_amount|intcomma }}</span>
+    </div>
+    <a href="{% url 'reports:financial_summary_report' %}" class="btn btn-sm btn-outline-dark py-0">Financial Summary &rarr;</a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-4">
+            <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search description, voucher #...">
+        </div>
+        <div class="col-md-3">
+            <select name="category" class="form-select">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if selected_category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" title="From Date">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" title="To Date">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Expenses Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th>Amount (₹)</th>
+                    <th>Payment Method</th>
+                    <th>Voucher / Ref #</th>
+                    <th>Recorded By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in page_obj %}
+                <tr>
+                    <td class="text-nowrap">{{ exp.expense_date|date:"d M Y" }}</td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ exp.category.name }}</span></td>
+                    <td class="fw-semibold text-dark">{{ exp.description }}</td>
+                    <td class="fw-bold fs-6 text-danger">₹{{ exp.amount|intcomma }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ exp.payment_method }}</span></td>
+                    <td class="font-monospace small text-muted">{{ exp.reference_number|default:"-" }}</td>
+                    <td class="text-muted small">{{ exp.recorded_by.username|default:"Admin" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No expenses recorded matching your filter.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} expenses</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&category={{ selected_category }}&date_from={{ date_from }}&date_to={{ date_to }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&category={{ selected_category }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&category={{ selected_category }}&date_from={{ date_from }}&date_to={{ date_to }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

@@ -1,0 +1,454 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Super Admin Dashboard - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Executive Operations Dashboard</h3>
+        <p class="text-muted small mb-0">Live real-time operational and financial overview</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'production:production_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-plus-circle"></i> Record Production
+        </a>
+        <a href="{% url 'dispatch:dispatch_create' %}" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-truck"></i> New Dispatch
+        </a>
+        <a href="{% url 'finance:payment_create' %}" class="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-cash"></i> Record Payment
+        </a>
+    </div>
+</div>
+
+<!-- 12 KPI Metrics Grid -->
+<div class="row g-3 mb-4">
+    <!-- Factory & Stock -->
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Total Products</div>
+                    <div class="kpi-value mt-1">{{ total_products }}</div>
+                    <small class="text-muted"><a href="{% url 'products:product_list' %}" class="text-decoration-none">View catalog &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Factory Available Stock</div>
+                    <div class="kpi-value mt-1">{{ total_factory_stock|intcomma }}</div>
+                    <small class="text-muted"><a href="{% url 'inventory:inventory_list' %}" class="text-decoration-none">Inspect stock &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-archive"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Today's Production</div>
+                    <div class="kpi-value mt-1 text-primary">{{ today_production|intcomma }}</div>
+                    <small class="text-muted"><a href="{% url 'production:production_list' %}" class="text-decoration-none">Shift logs &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-info bg-opacity-10 text-info">
+                    <i class="bi bi-gear-wide-connected"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Today's Dispatch</div>
+                    <div class="kpi-value mt-1 text-danger">{{ today_dispatch_count }} <span class="fs-6 text-muted">loads</span></div>
+                    <small class="text-muted">₹{{ today_dispatch_amount|intcomma }} billed</small>
+                </div>
+                <div class="kpi-icon-box bg-danger bg-opacity-10 text-danger">
+                    <i class="bi bi-truck"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clients & Construction Sites -->
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Active Clients</div>
+                    <div class="kpi-value mt-1">{{ total_clients }}</div>
+                    <small class="text-muted"><a href="{% url 'clients:client_list' %}" class="text-decoration-none">Client registry &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-secondary bg-opacity-10 text-secondary">
+                    <i class="bi bi-people"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Active Construction Projects</div>
+                    <div class="kpi-value mt-1 text-warning">{{ active_projects }}</div>
+                    <small class="text-muted"><a href="{% url 'construction:project_list' %}" class="text-decoration-none">Site tracking &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-building"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Client Site Stock</div>
+                    <div class="kpi-value mt-1">{{ total_client_material_stock|intcomma }}</div>
+                    <small class="text-muted">Delivered to client sites</small>
+                </div>
+                <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
+                    <i class="bi bi-layers"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Today's Site Usage</div>
+                    <div class="kpi-value mt-1 text-secondary">{{ today_usage|intcomma }}</div>
+                    <small class="text-muted">{{ today_workers }} workers present today</small>
+                </div>
+                <div class="kpi-icon-box bg-dark bg-opacity-10 text-dark">
+                    <i class="bi bi-tools"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial KPIs -->
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100 border-start border-danger border-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title text-danger">Total Outstanding Credit</div>
+                    <div class="kpi-value mt-1 text-danger">₹{{ total_outstanding|intcomma }}</div>
+                    <small class="text-muted"><a href="{% url 'finance:credit_management' %}" class="text-decoration-none text-danger">Manage credit &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-danger bg-opacity-10 text-danger">
+                    <i class="bi bi-cash-stack"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100 border-start border-success border-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title text-success">Today's Payments Received</div>
+                    <div class="kpi-value mt-1 text-success">₹{{ today_payments|intcomma }}</div>
+                    <small class="text-muted"><a href="{% url 'finance:payment_list' %}" class="text-decoration-none text-success">Payment ledger &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
+                    <i class="bi bi-wallet2"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Total Operating Expenses</div>
+                    <div class="kpi-value mt-1">₹{{ total_expenses|intcomma }}</div>
+                    <small class="text-muted"><a href="{% url 'finance:expense_list' %}" class="text-decoration-none">Expense register &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-secondary bg-opacity-10 text-secondary">
+                    <i class="bi bi-receipt"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Today's Attendance</div>
+                    <div class="kpi-value mt-1">{{ today_workers }} <span class="fs-6 text-muted">workers</span></div>
+                    <small class="text-muted"><a href="{% url 'workers:attendance_list' %}" class="text-decoration-none">Roll call &rarr;</a></small>
+                </div>
+                <div class="kpi-icon-box bg-info bg-opacity-10 text-info">
+                    <i class="bi bi-person-check"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-3 p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-graph-up text-primary me-2"></i>Production vs. Dispatch Volume (Last 7 Days)</h6>
+            </div>
+            <div style="height: 280px;">
+                <canvas id="productionDispatchChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-3 p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-pie-chart text-warning me-2"></i>Product Stock Distribution</h6>
+            </div>
+            <div style="height: 280px;" class="d-flex align-items-center justify-content-center">
+                <canvas id="inventoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities Tables -->
+<div class="row g-3">
+    <!-- Recent Production -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-gear me-2 text-primary"></i>Recent Factory Production</h6>
+                <a href="{% url 'production:production_list' %}" class="btn btn-sm btn-light py-0">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th>Qty</th>
+                            <th>Shift</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in recent_productions %}
+                        <tr>
+                            <td>{{ entry.production_date|date:"d M" }}</td>
+                            <td class="fw-medium">{{ entry.product.name }}</td>
+                            <td><span class="badge bg-primary-subtle text-primary fw-semibold">{{ entry.quantity|intcomma }} {{ entry.product.unit }}</span></td>
+                            <td><span class="badge bg-light text-dark border">{{ entry.shift }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No recent production recorded</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Dispatches -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-truck me-2 text-danger"></i>Recent Dispatches</h6>
+                <a href="{% url 'dispatch:dispatch_list' %}" class="btn btn-sm btn-light py-0">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Dispatch #</th>
+                            <th>Client</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for disp in recent_dispatches %}
+                        <tr>
+                            <td><a href="{% url 'dispatch:dispatch_detail' disp.id %}" class="fw-semibold text-decoration-none">{{ disp.dispatch_number }}</a></td>
+                            <td class="text-truncate" style="max-width: 140px;">{{ disp.client.name }}</td>
+                            <td class="fw-semibold">₹{{ disp.total_amount|intcomma }}</td>
+                            <td>
+                                {% if disp.payment_status == 'Paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                {% elif disp.payment_status == 'Partially Paid' %}
+                                    <span class="badge bg-warning text-dark">Partial</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Unpaid</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No recent dispatches</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Payments -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-credit-card me-2 text-success"></i>Recent Payments Collected</h6>
+                <a href="{% url 'finance:payment_list' %}" class="btn btn-sm btn-light py-0">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Payment #</th>
+                            <th>Client</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pay in recent_payments %}
+                        <tr>
+                            <td><a href="{% url 'finance:payment_receipt' pay.id %}" class="fw-semibold text-decoration-none">{{ pay.payment_number }}</a></td>
+                            <td>{{ pay.client.name }}</td>
+                            <td class="fw-bold text-success">₹{{ pay.amount|intcomma }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ pay.payment_method }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No recent payments</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Site Progress -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-3">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-building me-2 text-warning"></i>Recent Construction Progress</h6>
+                <a href="{% url 'construction:project_list' %}" class="btn btn-sm btn-light py-0">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Project</th>
+                            <th>Workers</th>
+                            <th>Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in recent_construction_entries %}
+                        <tr>
+                            <td>{{ entry.date|date:"d M" }}</td>
+                            <td><a href="{% url 'construction:project_detail' entry.project.id %}" class="text-decoration-none fw-medium">{{ entry.project.name }}</a></td>
+                            <td>{{ entry.number_of_workers }}</td>
+                            <td style="min-width: 120px;">
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ entry.work_progress_percentage }}%;"></div>
+                                </div>
+                                <small class="text-muted">{{ entry.work_progress_percentage }}%</small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-3">No construction entries recorded</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Chart 1: Production vs Dispatch
+    const labels = {{ chart_labels_json|safe }};
+    const prodData = {{ production_data_json|safe }};
+    const dispData = {{ dispatch_data_json|safe }};
+
+    const ctx1 = document.getElementById('productionDispatchChart').getContext('2d');
+    new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Production (Units)',
+                    data: prodData,
+                    backgroundColor: '#0284c7',
+                    borderRadius: 4,
+                },
+                {
+                    label: 'Dispatch (Units)',
+                    data: dispData,
+                    backgroundColor: '#c2410c',
+                    borderRadius: 4,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                x: { grid: { display: false } }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+
+    // Chart 2: Product stock distribution
+    const stockNames = {{ stock_product_names_json|safe }};
+    const stockValues = {{ stock_product_values_json|safe }};
+
+    const ctx2 = document.getElementById('inventoryChart').getContext('2d');
+    new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: stockNames,
+            datasets: [{
+                data: stockValues,
+                backgroundColor: ['#c2410c', '#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#64748b'],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+            }
+        }
+    });
+</script>
+{% endblock %}
+

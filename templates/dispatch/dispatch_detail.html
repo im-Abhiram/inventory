@@ -1,0 +1,116 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Dispatch {{ dispatch.dispatch_number }} - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'dispatch:dispatch_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">Dispatch {{ dispatch.dispatch_number }}</h3>
+            <span class="text-muted small">Date: {{ dispatch.dispatch_date|date:"d M Y" }}</span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'dispatch:dispatch_receipt' dispatch.id %}" target="_blank" class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-printer"></i> Print Delivery Receipt
+        </a>
+        {% if can_write and dispatch.payment_status != 'Paid' %}
+        <a href="{% url 'finance:payment_create' %}?dispatch={{ dispatch.id }}" class="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-cash"></i> Record Payment
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Header Details -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3 p-4 h-100">
+            <h6 class="fw-bold text-dark mb-3">Consignment Details</h6>
+            <table class="table table-sm table-borderless small">
+                <tr><td class="text-muted" style="width: 140px;">Client:</td><td class="fw-bold text-dark"><a href="{% url 'clients:client_detail' dispatch.client.id %}" class="text-decoration-none">{{ dispatch.client.name }}</a></td></tr>
+                <tr><td class="text-muted">Job Site / Project:</td><td>{{ dispatch.project.name|default:"Direct Delivery to Client" }}</td></tr>
+                <tr><td class="text-muted">Vehicle Number:</td><td><span class="badge bg-light text-dark border">{{ dispatch.vehicle_number|default:"-" }}</span></td></tr>
+                <tr><td class="text-muted">Driver Name:</td><td>{{ dispatch.driver_name|default:"-" }}</td></tr>
+                <tr><td class="text-muted">Created By:</td><td>{{ dispatch.created_by.username|default:"Admin" }}</td></tr>
+            </table>
+            {% if dispatch.delivery_notes %}
+            <div class="mt-2 p-2 bg-light rounded small">
+                <strong>Delivery Notes:</strong> {{ dispatch.delivery_notes }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Financial Card -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3 p-4 h-100">
+            <h6 class="fw-bold text-dark mb-3">Billing &amp; Payment Status</h6>
+            <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded-3">
+                <div>
+                    <div class="text-muted small">Total Consignment Value</div>
+                    <div class="fs-3 fw-bold text-dark">₹{{ dispatch.total_amount|intcomma }}</div>
+                </div>
+                <div class="text-end">
+                    <div class="text-muted small">Payment Status</div>
+                    {% if dispatch.payment_status == 'Paid' %}
+                        <span class="badge bg-success fs-6">Paid in Full</span>
+                    {% elif dispatch.payment_status == 'Partially Paid' %}
+                        <span class="badge bg-warning text-dark fs-6">Partially Paid</span>
+                    {% else %}
+                        <span class="badge bg-danger fs-6">Unpaid</span>
+                    {% endif %}
+                </div>
+            </div>
+            <table class="table table-sm table-borderless small">
+                <tr><td class="text-muted">Amount Paid:</td><td class="text-end text-success fw-bold">₹{{ dispatch.paid_amount|intcomma }}</td></tr>
+                <tr><td class="text-muted">Outstanding Balance:</td><td class="text-end text-danger fw-bold">₹{{ dispatch.outstanding_amount|intcomma }}</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Itemized Consignment Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="fw-bold text-dark mb-0">Dispatched Material Items</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Product Code</th>
+                    <th>Product Description</th>
+                    <th>Quantity Dispatched</th>
+                    <th>Unit</th>
+                    <th>Unit Price</th>
+                    <th class="text-end">Total Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in dispatch.items.all %}
+                <tr>
+                    <td><span class="badge bg-light text-dark border font-monospace">{{ item.product.code }}</span></td>
+                    <td class="fw-semibold">{{ item.product.name }}</td>
+                    <td class="fw-bold fs-6 text-primary">{{ item.quantity|intcomma }}</td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ item.product.unit }}</span></td>
+                    <td>₹{{ item.unit_price|intcomma }}</td>
+                    <td class="text-end fw-bold">₹{{ item.total_price|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="table-light fs-6">
+                    <th colspan="2" class="text-end">Total Items:</th>
+                    <th class="text-primary">{{ dispatch.total_quantity|intcomma }}</th>
+                    <th colspan="2" class="text-end">Grand Total Amount:</th>
+                    <th class="text-end fw-bold text-dark">₹{{ dispatch.total_amount|intcomma }}</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

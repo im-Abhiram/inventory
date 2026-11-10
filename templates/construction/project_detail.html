@@ -1,0 +1,317 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ project.name }} - Construction Project Tracking{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'construction:project_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">{{ project.name }}</h3>
+            <span class="text-muted small"><i class="bi bi-person"></i> Client: <a href="{% url 'clients:client_detail' project.client.id %}" class="text-decoration-none fw-medium">{{ project.client.name }}</a></span>
+            <span class="badge {% if project.status == 'Active' %}bg-success{% elif project.status == 'Completed' %}bg-primary{% else %}bg-secondary{% endif %} ms-1">{{ project.status }}</span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        {% if is_superadmin %}
+        <a href="{% url 'dispatch:dispatch_create' %}?client={{ project.client.id }}&project={{ project.id }}" class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1">
+            <i class="bi bi-truck"></i> Dispatch Materials to Site
+        </a>
+        <a href="{% url 'construction:daily_entry_create' project.id %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-plus-circle"></i> Log Daily Work &amp; Material Usage
+        </a>
+        <a href="{% url 'construction:project_edit' project.id %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Project KPIs -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Current Materials On Site</div>
+            <div class="kpi-value mt-1 text-dark">{{ total_materials_remaining|intcomma }} <span class="fs-6 text-muted">units</span></div>
+            <small class="text-muted">Available for construction</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title text-success">Materials Received</div>
+            <div class="kpi-value mt-1 text-success">{{ total_materials_received|intcomma }}</div>
+            <small class="text-muted">Total delivered to project</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title text-danger">Materials Consumed</div>
+            <div class="kpi-value mt-1 text-danger">{{ total_materials_used|intcomma }}</div>
+            <small class="text-muted">Used in construction</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="kpi-title">Labor &amp; Progress</div>
+                    <div class="kpi-value mt-1 text-warning-emphasis">{{ project.latest_progress }}%</div>
+                    <small class="text-muted">{{ total_workers_employed }} total worker-days</small>
+                </div>
+                <div class="kpi-icon-box bg-warning bg-opacity-10 text-warning">
+                    <i class="bi bi-hammer"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4 border-bottom">
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'overview' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=overview">
+            <i class="bi bi-layers me-1"></i> Site Material Stock
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'logs' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=logs">
+            <i class="bi bi-clock-history me-1"></i> Daily Work Logs ({{ daily_entries.count }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'dispatches' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=dispatches">
+            <i class="bi bi-truck me-1"></i> Dispatches Delivered ({{ dispatches.count }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'transactions' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=transactions">
+            <i class="bi bi-receipt me-1"></i> Site Stock Transactions
+        </a>
+    </li>
+</ul>
+
+<!-- Tab 1: Site Material Stock -->
+{% if active_tab == 'overview' %}
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-box-seam me-2 text-primary"></i>Current Site Material Inventory</h6>
+                <small class="text-muted">Formula: Opening + Received - Used</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Product Code</th>
+                            <th>Product Description</th>
+                            <th>Opening</th>
+                            <th>Received (+)</th>
+                            <th>Used (-)</th>
+                            <th>Current Stock</th>
+                            <th>Unit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in material_inventories %}
+                        <tr>
+                            <td><span class="badge bg-light text-dark border font-monospace">{{ inv.product.code }}</span></td>
+                            <td class="fw-semibold text-dark">{{ inv.product.name }}</td>
+                            <td>{{ inv.opening_stock|intcomma }}</td>
+                            <td class="text-success fw-medium">+{{ inv.total_received|intcomma }}</td>
+                            <td class="text-danger fw-medium">-{{ inv.total_used|intcomma }}</td>
+                            <td>
+                                <span class="fs-6 fw-bold {% if inv.current_stock <= 0 %}text-danger{% else %}text-dark{% endif %}">
+                                    {{ inv.current_stock|intcomma }}
+                                </span>
+                            </td>
+                            <td><span class="badge bg-secondary-subtle text-secondary">{{ inv.product.unit }}</span></td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" class="text-center text-muted py-4">No materials dispatched to this site yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm rounded-3 p-3">
+            <h6 class="fw-bold text-dark mb-3">Project Details</h6>
+            <ul class="list-group list-group-flush small">
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Site Location:</span>
+                    <span class="fw-semibold">{{ project.location|default:"-" }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Start Date:</span>
+                    <span class="fw-semibold">{{ project.start_date|date:"d M Y" }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Expected Completion:</span>
+                    <span class="fw-semibold">{{ project.expected_completion_date|date:"d M Y"|default:"TBD" }}</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Current Progress:</span>
+                    <span class="fw-bold text-warning-emphasis">{{ project.latest_progress }}%</span>
+                </li>
+            </ul>
+            {% if project.description %}
+            <div class="mt-3">
+                <label class="text-muted small fw-bold">Scope / Description:</label>
+                <p class="small text-secondary mb-0">{{ project.description }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tab 2: Daily Work Logs -->
+{% elif active_tab == 'logs' %}
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold text-dark mb-0">Daily Construction Logs &amp; Attendance</h6>
+        {% if is_superadmin %}
+        <a href="{% url 'construction:daily_entry_create' project.id %}" class="btn btn-sm btn-brick">
+            <i class="bi bi-plus-circle"></i> Log Today's Work
+        </a>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Workers Present</th>
+                    <th>Work Progress</th>
+                    <th>Completed Work Description</th>
+                    <th>Materials Consumed</th>
+                    <th>Recorded By</th>
+                    <th class="text-end">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in daily_entries %}
+                <tr>
+                    <td class="text-nowrap fw-medium">{{ entry.date|date:"d M Y" }}</td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ entry.number_of_workers }} workers</span></td>
+                    <td style="min-width: 120px;">
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ entry.work_progress_percentage }}%;"></div>
+                        </div>
+                        <small class="text-muted">{{ entry.work_progress_percentage }}%</small>
+                    </td>
+                    <td class="small" style="max-width: 250px;">{{ entry.work_completed_today|truncatechars:100 }}</td>
+                    <td class="small">
+                        {% for usage in entry.material_usages.all %}
+                            <div class="text-nowrap"><span class="fw-bold text-dark">{{ usage.quantity_used }}</span> {{ usage.product.name }}</div>
+                        {% empty %}
+                            <span class="text-muted">None</span>
+                        {% endfor %}
+                    </td>
+                    <td class="text-muted small">{{ entry.created_by.username|default:"Admin" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'construction:daily_entry_detail' entry.id %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No daily construction logs recorded for this project yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab 3: Dispatches Delivered -->
+{% elif active_tab == 'dispatches' %}
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Dispatch #</th>
+                    <th>Date</th>
+                    <th>Vehicle #</th>
+                    <th>Driver</th>
+                    <th>Total Units</th>
+                    <th>Value</th>
+                    <th class="text-end">Receipt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disp in dispatches %}
+                <tr>
+                    <td><a href="{% url 'dispatch:dispatch_detail' disp.id %}" class="fw-bold text-dark text-decoration-none">{{ disp.dispatch_number }}</a></td>
+                    <td>{{ disp.dispatch_date|date:"d M Y" }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ disp.vehicle_number|default:"-" }}</span></td>
+                    <td>{{ disp.driver_name|default:"-" }}</td>
+                    <td class="fw-medium">{{ disp.total_quantity|intcomma }}</td>
+                    <td class="fw-bold">₹{{ disp.total_amount|intcomma }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'dispatch:dispatch_receipt' disp.id %}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-printer"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No dispatches delivered to this project yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab 4: Site Stock Transactions -->
+{% elif active_tab == 'transactions' %}
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Site Balance After</th>
+                    <th>Reference</th>
+                    <th>Recorded By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in stock_transactions %}
+                <tr>
+                    <td>{{ t.date|date:"d M Y" }}</td>
+                    <td class="fw-semibold">{{ t.product.name }}</td>
+                    <td>
+                        <span class="badge {% if 'RECEIVED' in t.transaction_type or 'ADD' in t.transaction_type %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                            {{ t.get_transaction_type_display }}
+                        </span>
+                    </td>
+                    <td class="fw-bold">
+                        {% if 'RECEIVED' in t.transaction_type or 'ADD' in t.transaction_type %}
+                            <span class="text-success">+{{ t.quantity|intcomma }}</span>
+                        {% else %}
+                            <span class="text-danger">-{{ t.quantity|intcomma }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.balance_after|intcomma|default:"-" }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ t.reference|default:"-" }}</span></td>
+                    <td class="text-muted small">{{ t.created_by.username|default:"Admin" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No site stock movements yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

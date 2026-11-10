@@ -1,0 +1,428 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}{{ client.name }} - Client File{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'clients:client_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h3 class="fw-bold mb-0 text-dark">{{ client.name }}</h3>
+            <span class="badge bg-light text-dark border font-monospace">{{ client.code }}</span>
+            <span class="badge {% if client.payment_type == 'Cash' %}bg-info-subtle text-info-emphasis border border-info-subtle{% else %}bg-primary-subtle text-primary{% endif %}">
+                {{ client.payment_type }} Account
+            </span>
+            <span class="badge {% if client.is_active %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                {% if client.is_active %}Active Customer{% else %}Inactive{% endif %}
+            </span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        {% if can_write %}
+        <a href="{% url 'finance:payment_create' %}?client={{ client.id }}" class="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-cash"></i> Record Payment
+        </a>
+        {% endif %}
+        {% if is_superadmin %}
+        <a href="{% url 'dispatch:dispatch_create' %}?client={{ client.id }}" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-truck"></i> New Dispatch
+        </a>
+        <a href="{% url 'clients:client_edit' client.id %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Financial Summary Strip -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100 border-start border-danger border-3">
+            <div class="kpi-title text-danger">Outstanding Balance</div>
+            <div class="kpi-value mt-1 text-danger">₹{{ client.outstanding_balance|intcomma }}</div>
+            <small class="text-muted">Currently owed by client</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Credit Limit</div>
+            <div class="kpi-value mt-1">₹{{ client.credit_limit|intcomma }}</div>
+            <small class="text-muted">Approved credit line</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Available Credit</div>
+            <div class="kpi-value mt-1 {% if client.available_credit < 0 %}text-danger{% else %}text-success{% endif %}">
+                ₹{{ client.available_credit|intcomma }}
+            </div>
+            <small class="text-muted">Remaining purchasing headroom</small>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Total Dispatches Billed</div>
+            <div class="kpi-value mt-1 text-primary">₹{{ client.account.total_dispatched|intcomma|default:"0.00" }}</div>
+            <small class="text-muted">Paid: ₹{{ client.account.total_paid|intcomma|default:"0.00" }}</small>
+        </div>
+    </div>
+</div>
+
+<!-- 7 Navigation Tabs -->
+<ul class="nav nav-tabs mb-4 border-bottom">
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'overview' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=overview">
+            <i class="bi bi-info-circle me-1"></i> Overview
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'dispatches' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=dispatches">
+            <i class="bi bi-truck me-1"></i> Dispatch History ({{ dispatches.count }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'stock' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=stock">
+            <i class="bi bi-layers me-1"></i> Client Material Stock
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'construction' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=construction">
+            <i class="bi bi-building me-1"></i> Construction Tracking ({{ projects.count }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'payments' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=payments">
+            <i class="bi bi-credit-card me-1"></i> Payments ({{ payments.count }})
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'balance' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=balance">
+            <i class="bi bi-wallet2 me-1"></i> Outstanding Balance
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'reports' %}active fw-bold text-dark border-bottom-0{% endif %}" href="?tab=reports">
+            <i class="bi bi-file-earmark-text me-1"></i> Reports &amp; Statement
+        </a>
+    </li>
+</ul>
+
+<!-- Tab 1: Overview -->
+{% if active_tab == 'overview' %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3 p-4">
+            <h6 class="fw-bold text-dark mb-3">Contact Information</h6>
+            <table class="table table-sm table-borderless">
+                <tr><td class="text-muted" style="width: 140px;">Contact Person:</td><td class="fw-semibold">{{ client.contact_person|default:"-" }}</td></tr>
+                <tr><td class="text-muted">Primary Phone:</td><td class="fw-semibold">{{ client.phone }}</td></tr>
+                <tr><td class="text-muted">Alternate Phone:</td><td>{{ client.alt_phone|default:"-" }}</td></tr>
+                <tr><td class="text-muted">Location / City:</td><td>{{ client.location|default:"-" }}</td></tr>
+                <tr><td class="text-muted">Billing Address:</td><td>{{ client.address|default:"-" }}</td></tr>
+                <tr><td class="text-muted">Customer Since:</td><td>{{ client.created_at|date:"d M Y" }}</td></tr>
+            </table>
+            {% if client.notes %}
+            <div class="mt-2 p-2 bg-light rounded small">
+                <strong>Notes:</strong> {{ client.notes }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3 p-4">
+            <h6 class="fw-bold text-dark mb-3">Active Projects &amp; Job Sites</h6>
+            {% for proj in projects %}
+            <div class="border rounded-3 p-3 mb-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <a href="{% url 'construction:project_detail' proj.id %}" class="fw-bold text-dark text-decoration-none">{{ proj.name }}</a>
+                    <div class="text-muted small"><i class="bi bi-geo-alt"></i> {{ proj.location|default:"Site location not specified" }}</div>
+                </div>
+                <div class="text-end">
+                    <span class="badge {% if proj.status == 'Active' %}bg-success{% else %}bg-secondary{% endif %}">{{ proj.status }}</span>
+                    <div class="small text-muted mt-1">{{ proj.latest_progress }}% done</div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted py-4">No construction projects registered for this client.</div>
+            {% endfor %}
+            {% if is_superadmin %}
+            <a href="{% url 'construction:project_create' %}?client={{ client.id }}" class="btn btn-outline-primary btn-sm mt-2">
+                <i class="bi bi-plus"></i> Add Construction Project
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tab 2: Dispatch History -->
+{% elif active_tab == 'dispatches' %}
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Dispatch #</th>
+                    <th>Date</th>
+                    <th>Project Site</th>
+                    <th>Vehicle #</th>
+                    <th>Billed Amount</th>
+                    <th>Paid Amount</th>
+                    <th>Balance Due</th>
+                    <th>Payment Status</th>
+                    <th class="text-end">Receipt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disp in dispatches %}
+                <tr>
+                    <td><a href="{% url 'dispatch:dispatch_detail' disp.id %}" class="fw-bold text-dark text-decoration-none">{{ disp.dispatch_number }}</a></td>
+                    <td>{{ disp.dispatch_date|date:"d M Y" }}</td>
+                    <td>{{ disp.project.name|default:"Direct Supply" }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ disp.vehicle_number|default:"-" }}</span></td>
+                    <td class="fw-bold">₹{{ disp.total_amount|intcomma }}</td>
+                    <td class="text-success">₹{{ disp.paid_amount|intcomma }}</td>
+                    <td class="text-danger fw-semibold">₹{{ disp.outstanding_amount|intcomma }}</td>
+                    <td>
+                        {% if disp.payment_status == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif disp.payment_status == 'Partially Paid' %}
+                            <span class="badge bg-warning text-dark">Partially Paid</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unpaid</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'dispatch:dispatch_receipt' disp.id %}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Print Receipt">
+                            <i class="bi bi-printer"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No dispatches to this client yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab 3: Client Material Stock -->
+{% elif active_tab == 'stock' %}
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="card-header bg-white py-3 border-bottom">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-layers me-2 text-primary"></i>Client Site Material Holdings (Available at Project Sites)</h6>
+        <p class="text-muted small mb-0">Formula: Opening + Materials Received - Materials Used on Site</p>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Project Site</th>
+                    <th>Material / Product</th>
+                    <th>Opening</th>
+                    <th>Delivered / Received</th>
+                    <th>Used in Construction</th>
+                    <th>Current Site Stock</th>
+                    <th>Unit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in material_inventories %}
+                <tr>
+                    <td><a href="{% url 'construction:project_detail' inv.project.id %}" class="fw-bold text-dark text-decoration-none">{{ inv.project.name }}</a></td>
+                    <td class="fw-semibold">{{ inv.product.name }}</td>
+                    <td>{{ inv.opening_stock|intcomma }}</td>
+                    <td class="text-success fw-medium">+{{ inv.total_received|intcomma }}</td>
+                    <td class="text-danger fw-medium">-{{ inv.total_used|intcomma }}</td>
+                    <td><span class="fs-6 fw-bold text-dark">{{ inv.current_stock|intcomma }}</span></td>
+                    <td><span class="badge bg-light text-dark border">{{ inv.product.unit }}</span></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No material stock tracked at client sites yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab 4: Construction Tracking -->
+{% elif active_tab == 'construction' %}
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-clock-history me-2 text-warning"></i>Daily Construction Work Logs</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Project</th>
+                    <th>Workers Present</th>
+                    <th>Progress %</th>
+                    <th>Work Completed Summary</th>
+                    <th>Materials Consumed</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in daily_entries %}
+                <tr>
+                    <td class="text-nowrap">{{ entry.date|date:"d M Y" }}</td>
+                    <td class="fw-semibold">{{ entry.project.name }}</td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ entry.number_of_workers }} workers</span></td>
+                    <td style="min-width: 100px;">
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ entry.work_progress_percentage }}%;"></div>
+                        </div>
+                        <small class="text-muted">{{ entry.work_progress_percentage }}%</small>
+                    </td>
+                    <td class="small">{{ entry.work_completed_today|truncatechars:60 }}</td>
+                    <td class="small">
+                        {% for usage in entry.material_usages.all %}
+                            <span class="badge bg-light text-dark border">{{ usage.product.name }}: {{ usage.quantity_used }}</span>
+                        {% empty %}
+                            <span class="text-muted">-</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No daily construction logs recorded for this client's projects.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab 5: Payments -->
+{% elif active_tab == 'payments' %}
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold text-dark mb-0"><i class="bi bi-cash-coin me-2 text-success"></i>Payment History</h6>
+        {% if can_write %}
+        <a href="{% url 'finance:payment_create' %}?client={{ client.id }}" class="btn btn-sm btn-success">
+            <i class="bi bi-plus"></i> Record Payment
+        </a>
+        {% endif %}
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Receipt #</th>
+                    <th>Date</th>
+                    <th>Amount Paid</th>
+                    <th>Payment Method</th>
+                    <th>Reference #</th>
+                    <th>Recorded By</th>
+                    <th class="text-end">Receipt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pay in payments %}
+                <tr>
+                    <td><a href="{% url 'finance:payment_receipt' pay.id %}" class="fw-bold text-dark text-decoration-none">{{ pay.payment_number }}</a></td>
+                    <td>{{ pay.payment_date|date:"d M Y" }}</td>
+                    <td class="fs-6 fw-bold text-success">₹{{ pay.amount|intcomma }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ pay.payment_method }}</span></td>
+                    <td class="text-muted font-monospace small">{{ pay.reference_number|default:"-" }}</td>
+                    <td class="text-muted small">{{ pay.recorded_by.username|default:"Admin" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'finance:payment_receipt' pay.id %}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                            <i class="bi bi-printer"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">No payments recorded from this client yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tab 6: Outstanding Balance -->
+{% elif active_tab == 'balance' %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-4 p-4">
+            <h6 class="fw-bold text-dark mb-3"><i class="bi bi-calculator me-2 text-danger"></i>Outstanding Balance Formula</h6>
+            <table class="table table-sm">
+                <tr><td class="text-muted">Opening Balance:</td><td class="text-end fw-semibold">₹{{ client.opening_balance|intcomma }}</td></tr>
+                <tr><td class="text-muted">(+) Total Dispatches Invoiced:</td><td class="text-end text-primary fw-semibold">+ ₹{{ client.account.total_dispatched|intcomma }}</td></tr>
+                <tr><td class="text-muted">(-) Total Payments Received:</td><td class="text-end text-success fw-semibold">- ₹{{ client.account.total_paid|intcomma }}</td></tr>
+                <tr><td class="text-muted">(+/-) Adjustments:</td><td class="text-end fw-semibold">₹{{ client.account.adjustments|intcomma }}</td></tr>
+                <tr class="table-light fs-5 border-top border-dark"><td class="fw-bold text-dark">Current Outstanding Due:</td><td class="text-end fw-bold text-danger">₹{{ client.outstanding_balance|intcomma }}</td></tr>
+            </table>
+
+            <div class="p-3 bg-light rounded-3 mt-3">
+                <div class="d-flex justify-content-between mb-1 small">
+                    <span>Credit Utilization:</span>
+                    <span class="fw-bold">₹{{ client.outstanding_balance|intcomma }} / ₹{{ client.credit_limit|intcomma }}</span>
+                </div>
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar {% if client.is_credit_exceeded %}bg-danger{% else %}bg-primary{% endif %}" style="width: {% if client.credit_limit > 0 %}{% widthratio client.outstanding_balance client.credit_limit 100 %}{% else %}0{% endif %}%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tab 7: Reports -->
+{% elif active_tab == 'reports' %}
+<div class="card border-0 shadow-sm rounded-4 p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="fw-bold text-dark mb-0">Client Statement of Account</h5>
+            <p class="text-muted small mb-0">Complete dispatch &amp; payment audit statement</p>
+        </div>
+        <button onclick="window.print()" class="btn btn-outline-dark btn-sm"><i class="bi bi-printer me-1"></i> Print Statement</button>
+    </div>
+
+    <div class="border rounded-3 p-3 bg-light mb-4">
+        <div class="row">
+            <div class="col-sm-6">
+                <strong>{{ client.name }}</strong><br>
+                <span class="text-muted">{{ client.address|default:client.location }}</span><br>
+                <span>Phone: {{ client.phone }}</span>
+            </div>
+            <div class="col-sm-6 text-sm-end">
+                <span>Statement Date: {% now "d M Y" %}</span><br>
+                <span class="fs-5 fw-bold text-danger">Due: ₹{{ client.outstanding_balance|intcomma }}</span>
+            </div>
+        </div>
+    </div>
+
+    <h6>Recent Transactions</h6>
+    <div class="table-responsive">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th class="text-end">Debited (₹)</th>
+                    <th class="text-end">Credited (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disp in dispatches %}
+                <tr>
+                    <td>{{ disp.dispatch_date|date:"d M Y" }}</td>
+                    <td>Dispatch Consignment {{ disp.dispatch_number }}</td>
+                    <td class="text-end text-danger fw-semibold">₹{{ disp.total_amount|intcomma }}</td>
+                    <td class="text-end text-muted">-</td>
+                </tr>
+                {% endfor %}
+                {% for pay in payments %}
+                <tr>
+                    <td>{{ pay.payment_date|date:"d M Y" }}</td>
+                    <td>Payment Received ({{ pay.payment_number }} - {{ pay.payment_method }})</td>
+                    <td class="text-end text-muted">-</td>
+                    <td class="text-end text-success fw-semibold">₹{{ pay.amount|intcomma }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

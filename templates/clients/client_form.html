@@ -1,0 +1,121 @@
+{% extends 'base/base.html' %}
+
+{% block title %}{{ title }} - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'clients:client_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">{{ title }}</h5>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger small">{{ form.non_field_errors.0 }}</div>
+                    {% endif %}
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <label class="form-label fw-semibold small">Client / Company Name <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}<div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-semibold small">Client Code <span class="text-muted fw-normal">(Optional)</span></label>
+                            {{ form.code }}
+                            <div class="form-text small">Leave blank to auto-generate (e.g. CLT-0001)</div>
+                            {% if form.code.errors %}<div class="text-danger small mt-1">{{ form.code.errors.0 }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3 p-3 bg-light rounded-3 border">
+                        <label class="form-label fw-bold text-dark small mb-1"><i class="bi bi-wallet2 me-1"></i>Account &amp; Payment Mode <span class="text-danger">*</span></label>
+                        {{ form.payment_type }}
+                        <div class="form-text small text-secondary">
+                            Choose <strong>Cash Client</strong> if customer pays immediately without credit terms, or <strong>Credit Client</strong> to set an approved credit limit.
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Contact Person</label>
+                            {{ form.contact_person }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Phone Number <span class="text-danger">*</span></label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}<div class="text-danger small mt-1">{{ form.phone.errors.0 }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small">Alternative Phone</label>
+                            {{ form.alt_phone }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Location / City</label>
+                            {{ form.location }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Address</label>
+                            {{ form.address }}
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3 p-3 bg-light rounded-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Opening Balance (₹) <span class="text-danger">*</span></label>
+                            {{ form.opening_balance }}
+                            <div class="form-text small">Initial debt owed (+ for debt)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold small">Credit Limit (₹) <span class="text-danger">*</span></label>
+                            {{ form.credit_limit }}
+                            <div class="form-text small">Maximum allowed outstanding credit</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Notes / Delivery Instructions</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <div class="form-check mb-4">
+                        {{ form.is_active }}
+                        <label class="form-check-label small fw-semibold" for="{{ form.is_active.id_for_label }}">
+                            Client is active (eligible for dispatches)
+                        </label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                        <a href="{% url 'clients:client_list' %}" class="btn btn-light border px-4">Cancel</a>
+                        <button type="submit" class="btn btn-brick px-4">Save Client</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const typeSelect = document.getElementById('id_payment_type');
+    const creditInput = document.getElementById('id_credit_limit');
+    if (typeSelect && creditInput) {
+        typeSelect.addEventListener('change', () => {
+            if (typeSelect.value === 'Cash') {
+                creditInput.value = '0.00';
+            }
+        });
+    }
+</script>
+{% endblock %}
+

@@ -1,0 +1,149 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Dispatches - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Factory Dispatches &amp; Deliveries</h3>
+        <p class="text-muted small mb-0">Dispatched consignments shipped to clients and client construction sites</p>
+    </div>
+    {% if is_superadmin %}
+    <a href="{% url 'dispatch:dispatch_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-plus-circle"></i> Create New Dispatch
+    </a>
+    {% endif %}
+</div>
+
+<!-- Total Banner -->
+<div class="alert alert-light border shadow-sm py-2 px-3 mb-4 d-flex justify-content-between align-items-center">
+    <div class="text-secondary small">
+        <i class="bi bi-truck me-1"></i> Total Filtered Consignment Value:
+        <span class="fs-6 fw-bold text-dark ms-1">₹{{ total_dispatched_amount|intcomma }}</span>
+    </div>
+    <a href="{% url 'reports:dispatch_report' %}" class="btn btn-sm btn-outline-dark py-0">Dispatch Analytics &rarr;</a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-3">
+            <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search dispatch #, client, vehicle, driver...">
+        </div>
+        <div class="col-md-3">
+            <select name="client" class="form-select">
+                <option value="">All Clients</option>
+                {% for c in clients %}
+                    <option value="{{ c.id }}" {% if selected_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">All Payment Statuses</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" title="From Date">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" title="To Date">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i></button>
+        </div>
+    </form>
+</div>
+
+<!-- Dispatches Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Dispatch #</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Job Site / Project</th>
+                    <th>Vehicle #</th>
+                    <th>Total Units</th>
+                    <th>Billed Value</th>
+                    <th>Payment Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for disp in page_obj %}
+                <tr>
+                    <td>
+                        <a href="{% url 'dispatch:dispatch_detail' disp.id %}" class="fw-bold text-dark text-decoration-none">
+                            {{ disp.dispatch_number }}
+                        </a>
+                    </td>
+                    <td class="text-nowrap">{{ disp.dispatch_date|date:"d M Y" }}</td>
+                    <td>
+                        <a href="{% url 'clients:client_detail' disp.client.id %}" class="fw-semibold text-decoration-none text-dark">
+                            {{ disp.client.name }}
+                        </a>
+                    </td>
+                    <td>{{ disp.project.name|default:"Direct Delivery" }}</td>
+                    <td><span class="badge bg-light text-dark border">{{ disp.vehicle_number|default:"-" }}</span></td>
+                    <td class="fw-medium">{{ disp.total_quantity|intcomma }}</td>
+                    <td class="fw-bold">₹{{ disp.total_amount|intcomma }}</td>
+                    <td>
+                        {% if disp.payment_status == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif disp.payment_status == 'Partially Paid' %}
+                            <span class="badge bg-warning text-dark">Partially Paid</span>
+                        {% else %}
+                            <span class="badge bg-danger">Unpaid</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'dispatch:dispatch_detail' disp.id %}" class="btn btn-outline-secondary" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{% url 'dispatch:dispatch_receipt' disp.id %}" class="btn btn-outline-secondary" target="_blank" title="Print Delivery Slip">
+                                <i class="bi bi-printer"></i>
+                            </a>
+                            {% if can_write and disp.payment_status != 'Paid' %}
+                            <a href="{% url 'finance:payment_create' %}?dispatch={{ disp.id }}" class="btn btn-outline-success" title="Record Payment">
+                                <i class="bi bi-cash"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-4">No dispatches match your search.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} dispatches</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}&date_from={{ date_from }}&date_to={{ date_to }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}&date_from={{ date_from }}&date_to={{ date_to }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

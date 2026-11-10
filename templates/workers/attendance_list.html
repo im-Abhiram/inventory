@@ -1,0 +1,111 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Worker Daily Attendance - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Daily Worker Attendance</h3>
+        <p class="text-muted small mb-0">Daily labor muster roll and project deployment</p>
+    </div>
+    {% if is_superadmin %}
+    <a href="{% url 'workers:attendance_record' %}?date={{ selected_date }}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-card-checklist"></i> Take Daily Roll Call
+    </a>
+    {% endif %}
+</div>
+
+<!-- Attendance Stats Banner -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="card card-kpi p-3 border-start border-success border-3">
+            <div class="kpi-title text-success">Present Full Day</div>
+            <div class="kpi-value text-success mt-1">{{ present_count }}</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card card-kpi p-3 border-start border-warning border-3">
+            <div class="kpi-title text-warning-emphasis">Half Day</div>
+            <div class="kpi-value text-warning-emphasis mt-1">{{ half_day_count }}</div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="card card-kpi p-3 border-start border-danger border-3">
+            <div class="kpi-title text-danger">Absent</div>
+            <div class="kpi-value text-danger mt-1">{{ absent_count }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Date Picker Filter -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
+                <input type="date" name="date" value="{{ selected_date }}" class="form-control" required>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="project" class="form-select">
+                <option value="">All Locations / Projects</option>
+                {% for p in projects %}
+                    <option value="{{ p.id }}" {% if selected_project == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="">All Attendance Statuses</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100">Load Roster</button>
+        </div>
+    </form>
+</div>
+
+<!-- Attendance List Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Worker Name</th>
+                    <th>Skill / Type</th>
+                    <th>Attendance Status</th>
+                    <th>Assigned Project Site</th>
+                    <th>Notes</th>
+                    <th>Recorded By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for att in attendances %}
+                <tr>
+                    <td class="fw-bold text-dark">{{ att.worker.name }}</td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ att.worker.get_worker_type_display }}</span></td>
+                    <td>
+                        {% if att.status == 'Present' %}
+                            <span class="badge bg-success">Present</span>
+                        {% elif att.status == 'Half Day' %}
+                            <span class="badge bg-warning text-dark">Half Day</span>
+                        {% else %}
+                            <span class="badge bg-danger">Absent</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ att.project.name|default:"Factory Plant" }}</td>
+                    <td class="text-muted small">{{ att.notes|default:"-" }}</td>
+                    <td class="text-muted small">{{ att.recorded_by.username|default:"Admin" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-4">No attendance records found for {{ selected_date }}. Use 'Take Daily Roll Call' to record attendance.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+

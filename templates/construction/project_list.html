@@ -1,0 +1,125 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Client Construction Tracking - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Client Construction Projects</h3>
+        <p class="text-muted small mb-0">Track materials delivered to client sites, daily usage, worker presence, and build progress</p>
+    </div>
+    {% if is_superadmin %}
+    <a href="{% url 'construction:project_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-plus-circle"></i> Create Construction Project
+    </a>
+    {% endif %}
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search project name, client, site location...">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="client" class="form-select">
+                <option value="">All Clients</option>
+                {% for c in clients %}
+                    <option value="{{ c.id }}" {% if selected_client == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">All Statuses</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Projects Cards Grid -->
+<div class="row g-3 mb-4">
+    {% for proj in page_obj %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100 p-3 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <span class="badge {% if proj.status == 'Active' %}bg-success{% elif proj.status == 'Planning' %}bg-info text-dark{% elif proj.status == 'Completed' %}bg-primary{% elif proj.status == 'On Hold' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                    {{ proj.status }}
+                </span>
+                <small class="text-muted"><i class="bi bi-calendar3"></i> {{ proj.start_date|date:"d M Y" }}</small>
+            </div>
+
+            <h5 class="fw-bold mb-1">
+                <a href="{% url 'construction:project_detail' proj.id %}" class="text-dark text-decoration-none">
+                    {{ proj.name }}
+                </a>
+            </h5>
+            <div class="small text-muted mb-2"><i class="bi bi-person"></i> <a href="{% url 'clients:client_detail' proj.client.id %}" class="text-decoration-none">{{ proj.client.name }}</a></div>
+            <div class="small text-secondary mb-3"><i class="bi bi-geo-alt"></i> {{ proj.location|default:"Location not specified" }}</div>
+
+            <!-- Progress Bar -->
+            <div class="mt-auto pt-3 border-top">
+                <div class="d-flex justify-content-between align-items-center mb-1 small">
+                    <span class="text-muted">Work Progress:</span>
+                    <span class="fw-bold text-dark">{{ proj.latest_progress }}%</span>
+                </div>
+                <div class="progress mb-3" style="height: 6px;">
+                    <div class="progress-bar bg-warning" role="progressbar" style="width: {{ proj.latest_progress }}%;"></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center small text-muted">
+                    <span><i class="bi bi-people"></i> {{ proj.total_worker_days }} worker-days</span>
+                    <span><i class="bi bi-layers"></i> {{ proj.material_inventories.count }} materials</span>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <a href="{% url 'construction:project_detail' proj.id %}" class="btn btn-outline-dark btn-sm flex-grow-1">
+                        View Project
+                    </a>
+                    {% if is_superadmin %}
+                    <a href="{% url 'construction:daily_entry_create' proj.id %}" class="btn btn-brick btn-sm" title="Log Daily Construction & Materials">
+                        <i class="bi bi-plus-circle"></i> Daily Log
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center text-muted py-5">
+        <i class="bi bi-building fs-1 d-block mb-2 text-secondary"></i>
+        No construction projects registered yet.
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="d-flex justify-content-center">
+    <ul class="pagination pagination-sm">
+        {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">&laquo;</a></li>
+        {% endif %}
+        {% for num in page_obj.paginator.page_range %}
+            <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}&q={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">{{ num }}</a>
+            </li>
+        {% endfor %}
+        {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&client={{ selected_client }}&status={{ selected_status }}">&raquo;</a></li>
+        {% endif %}
+    </ul>
+</div>
+{% endif %}
+{% endblock %}
+

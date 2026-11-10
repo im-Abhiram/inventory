@@ -1,0 +1,69 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Production #{{ entry.id }} - Brick Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'production:production_list' %}" class="btn btn-sm btn-light border"><i class="bi bi-arrow-left"></i></a>
+                    <h5 class="fw-bold mb-0 text-dark">Production Entry #{{ entry.id }}</h5>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary">Recorded</span>
+                    {% if is_superadmin %}
+                    <a href="{% url 'production:production_edit' entry.id %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-pencil me-1"></i> Edit
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <div class="text-center p-3 mb-4 bg-light rounded-3">
+                    <div class="text-muted small fw-semibold">TOTAL OUTPUT</div>
+                    <div class="fs-1 fw-bold text-primary">{{ entry.quantity|intcomma }}</div>
+                    <div class="fw-medium text-dark">{{ entry.product.name }} ({{ entry.product.unit }})</div>
+                </div>
+
+                <ul class="list-group list-group-flush mb-4 small">
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Production Date:</span>
+                        <span class="fw-semibold">{{ entry.production_date|date:"l, d F Y" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Shift:</span>
+                        <span class="badge bg-light text-dark border">{{ entry.shift }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Workers on Shift:</span>
+                        <span class="fw-semibold">{{ entry.worker_count }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Recorded By:</span>
+                        <span class="fw-semibold">{{ entry.created_by.username|default:"Admin" }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted">Recorded Timestamp:</span>
+                        <span class="fw-semibold">{{ entry.created_at|date:"d M Y H:i" }}</span>
+                    </li>
+                </ul>
+
+                {% if entry.notes %}
+                <div class="p-3 bg-light rounded-3 mb-3">
+                    <div class="small fw-bold text-secondary mb-1">Notes / Batch Info:</div>
+                    <div class="small text-dark">{{ entry.notes }}</div>
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-end gap-2 border-top pt-3">
+                    <a href="{% url 'inventory:inventory_list' %}" class="btn btn-light border px-4">View Factory Inventory</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

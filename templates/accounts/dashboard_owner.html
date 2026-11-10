@@ -1,0 +1,120 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Business Performance Dashboard (Owner View) - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Executive Business Overview</h3>
+        <p class="text-muted small mb-0">High-level enterprise performance metrics (Read-Only Mode)</p>
+    </div>
+
+    <!-- Date Filters -->
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="btn-group shadow-sm" role="group">
+            <a href="?period=today" class="btn btn-sm {% if filter_mode == 'today' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Today</a>
+            <a href="?period=this_week" class="btn btn-sm {% if filter_mode == 'this_week' %}btn-dark{% else %}btn-outline-secondary{% endif %}">This Week</a>
+            <a href="?period=this_month" class="btn btn-sm {% if filter_mode == 'this_month' %}btn-dark{% else %}btn-outline-secondary{% endif %}">This Month</a>
+        </div>
+
+        <form method="get" class="d-flex align-items-center gap-1">
+            <input type="hidden" name="period" value="custom">
+            <input type="date" name="date_from" value="{{ filter_from|date:'Y-m-d' }}" class="form-control form-control-sm" style="width: 135px;" required>
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ filter_to|date:'Y-m-d' }}" class="form-control form-control-sm" style="width: 135px;" required>
+            <button type="submit" class="btn btn-sm btn-secondary"><i class="bi bi-funnel"></i> Filter</button>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-light border shadow-sm py-2 mb-4 d-flex align-items-center justify-content-between">
+    <div class="small text-secondary">
+        <i class="bi bi-calendar3 me-1"></i> Reporting Period: <strong>{{ filter_from|date:"d M Y" }}</strong> to <strong>{{ filter_to|date:"d M Y" }}</strong>
+    </div>
+    <span class="badge bg-secondary-subtle text-secondary border">Role: Enterprise Owner (Auditor View)</span>
+</div>
+
+<!-- Performance Cards in Period -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Production in Period</div>
+            <div class="kpi-value mt-1 text-primary">{{ prod_qty|intcomma }} <span class="fs-6 text-muted">units</span></div>
+            <small class="text-muted">Total manufactured volume</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Dispatches in Period</div>
+            <div class="kpi-value mt-1 text-danger">₹{{ disp_rev|intcomma }}</div>
+            <small class="text-muted">{{ disp_count }} consignments shipped</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title text-success">Cash Collected</div>
+            <div class="kpi-value mt-1 text-success">₹{{ pay_received|intcomma }}</div>
+            <small class="text-muted">Payments received in period</small>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card card-kpi p-3 h-100">
+            <div class="kpi-title">Operating Expenses</div>
+            <div class="kpi-value mt-1 text-secondary">₹{{ exp_incurred|intcomma }}</div>
+            <small class="text-muted">Net cash: ₹{{ net_cashflow|intcomma }}</small>
+        </div>
+    </div>
+</div>
+
+<!-- Current Asset & Balance Snapshots -->
+<h5 class="fw-bold text-dark mb-3"><i class="bi bi-building-check me-2"></i>Current Business Assets &amp; Exposure</h5>
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="card bg-white border p-3 rounded-3 shadow-sm">
+            <div class="text-muted small fw-semibold">FACTORY STOCK</div>
+            <div class="fs-3 fw-bold text-dark mt-1">{{ factory_stock_total|intcomma }}</div>
+            <div class="small text-muted">Finished goods inside plant</div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card bg-white border p-3 rounded-3 shadow-sm">
+            <div class="text-muted small fw-semibold">CLIENT SITE MATERIALS</div>
+            <div class="fs-3 fw-bold text-dark mt-1">{{ client_stock_total|intcomma }}</div>
+            <div class="small text-muted">Active site holdings</div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card bg-white border p-3 rounded-3 shadow-sm">
+            <div class="text-muted small fw-semibold">ACTIVE PROJECTS</div>
+            <div class="fs-3 fw-bold text-dark mt-1">{{ active_projects_count }}</div>
+            <div class="small text-muted">Ongoing customer sites</div>
+        </div>
+    </div>
+
+    <div class="col-sm-6 col-lg-3">
+        <div class="card bg-white border border-danger p-3 rounded-3 shadow-sm">
+            <div class="text-danger small fw-semibold">TOTAL RECEIVABLES</div>
+            <div class="fs-3 fw-bold text-danger mt-1">₹{{ total_outstanding|intcomma }}</div>
+            <div class="small text-muted">Client credit balance outstanding</div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-3 p-4">
+    <h6 class="fw-bold text-dark mb-3"><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>Executive Quick Report Links</h6>
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'reports:inventory_report' %}" class="btn btn-outline-dark btn-sm"><i class="bi bi-archive me-1"></i> Inventory Status</a>
+        <a href="{% url 'reports:production_report' %}" class="btn btn-outline-dark btn-sm"><i class="bi bi-gear me-1"></i> Production Trends</a>
+        <a href="{% url 'reports:financial_summary_report' %}" class="btn btn-outline-dark btn-sm"><i class="bi bi-cash-stack me-1"></i> Financial Summary</a>
+        <a href="{% url 'reports:credit_report' %}" class="btn btn-outline-dark btn-sm"><i class="bi bi-person-exclamation me-1"></i> Credit Risk Audit</a>
+        <a href="{% url 'reports:construction_report' %}" class="btn btn-outline-dark btn-sm"><i class="bi bi-building me-1"></i> Site Progress Audit</a>
+    </div>
+</div>
+{% endblock %}
+

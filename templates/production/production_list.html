@@ -1,0 +1,136 @@
+{% extends 'base/base.html' %}
+{% load humanize %}
+
+{% block title %}Production Logs - Brick Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-0 text-dark">Factory Production Log</h3>
+        <p class="text-muted small mb-0">Daily shift manufacturing entries that automatically increase plant inventory</p>
+    </div>
+    {% if is_superadmin %}
+    <a href="{% url 'production:production_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
+        <i class="bi bi-plus-circle"></i> Record Shift Production
+    </a>
+    {% endif %}
+</div>
+
+<!-- Total Summary Banner -->
+<div class="alert alert-light border shadow-sm py-2 px-3 mb-4 d-flex justify-content-between align-items-center">
+    <div class="text-secondary small">
+        <i class="bi bi-info-circle me-1"></i> Filtered Production Volume:
+        <span class="fs-6 fw-bold text-dark ms-1">{{ total_quantity_produced|intcomma }} units</span>
+    </div>
+    <a href="{% url 'reports:production_report' %}" class="btn btn-sm btn-outline-dark py-0">View Production Analytics &rarr;</a>
+</div>
+
+<!-- Filters -->
+<div class="card border-0 shadow-sm rounded-3 mb-4 p-3 bg-white">
+    <form method="get" class="row g-2">
+        <div class="col-md-3">
+            <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search batch notes...">
+        </div>
+        <div class="col-md-3">
+            <select name="product" class="form-select">
+                <option value="">All Products</option>
+                {% for p in products %}
+                    <option value="{{ p.id }}" {% if selected_product == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="shift" class="form-select">
+                <option value="">All Shifts</option>
+                {% for s_val, s_lbl in shifts %}
+                    <option value="{{ s_val }}" {% if selected_shift == s_val %}selected{% endif %}>{{ s_lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-center gap-1">
+            <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" title="From Date">
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" title="To Date">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-dark w-100"><i class="bi bi-funnel"></i></button>
+        </div>
+    </form>
+</div>
+
+<!-- Entries Table -->
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Product</th>
+                    <th>Quantity Produced</th>
+                    <th>Shift</th>
+                    <th>Workers On Shift</th>
+                    <th>Batch Notes</th>
+                    <th>Recorded By</th>
+                    <th class="text-end">Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in page_obj %}
+                <tr>
+                    <td class="text-nowrap fw-medium">{{ entry.production_date|date:"d M Y" }}</td>
+                    <td>
+                        <a href="{% url 'products:product_detail' entry.product.id %}" class="fw-bold text-dark text-decoration-none">
+                            {{ entry.product.name }}
+                        </a>
+                        <small class="text-muted d-block font-monospace">{{ entry.product.code }}</small>
+                    </td>
+                    <td>
+                        <span class="fs-6 fw-bold text-primary">{{ entry.quantity|intcomma }}</span>
+                        <small class="text-muted">{{ entry.product.unit }}</small>
+                    </td>
+                    <td><span class="badge bg-light text-dark border">{{ entry.shift }}</span></td>
+                    <td><span class="badge bg-secondary-subtle text-secondary">{{ entry.worker_count }} workers</span></td>
+                    <td class="text-muted small" style="max-width: 180px;">{{ entry.notes|default:"-" }}</td>
+                    <td class="text-muted small">{{ entry.created_by.username|default:"Admin" }}</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm">
+                            <a href="{% url 'production:production_detail' entry.id %}" class="btn btn-outline-secondary" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if is_superadmin %}
+                            <a href="{% url 'production:production_edit' entry.id %}" class="btn btn-outline-secondary" title="Edit Production Entry">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-4">No production entries match your criteria.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted">Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries</small>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}&product={{ selected_product }}&shift={{ selected_shift }}&date_from={{ date_from }}&date_to={{ date_to }}">&laquo;</a></li>
+            {% endif %}
+            {% for num in page_obj.paginator.page_range %}
+                <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                    <a class="page-link" href="?page={{ num }}&q={{ search_query }}&product={{ selected_product }}&shift={{ selected_shift }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a>
+                </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}&product={{ selected_product }}&shift={{ selected_shift }}&date_from={{ date_from }}&date_to={{ date_to }}">&raquo;</a></li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
