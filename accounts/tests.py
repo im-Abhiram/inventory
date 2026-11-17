@@ -69,3 +69,40 @@ class AccountRoleTests(TestCase):
         new_user = User.objects.filter(username='new_staff').first()
         self.assertIsNotNone(new_user)
         self.assertEqual(new_user.profile.role, UserProfile.ROLE_ACCOUNTANT)
+
+
+    def test_login_math_captcha_verification(self):
+        # 1. GET login page establishes session captcha
+        response = self.client.get(reverse('accounts:login'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('captcha_question', response.context)
+        correct_answer = self.client.session.get('login_captcha_ans')
+        self.assertIsNotNone(correct_answer)
+
+        # 2. POST with wrong captcha fails
+        wrong_response = self.client.post(reverse('accounts:login'), {
+            'username': 'admin_test',
+            'password': 'Password123!',
+            'captcha_answer': str(int(correct_answer) + 99)
+        })
+        self.assertEqual(wrong_response.status_code, 200)
+        self.assertFalse(wrong_response.wsgi_request.user.is_authenticated)
+
+        # 3. POST with correct captcha succeeds
+        new_answer = self.client.session.get('login_captcha_ans')
+        correct_response = self.client.post(reverse('accounts:login'), {
+            'username': 'admin_test',
+            'password': 'Password123!',
+            'captcha_answer': str(new_answer)
+        })
+        self.assertEqual(correct_response.status_code, 302)
+        self.assertTrue('_auth_user_id' in self.client.session)
+
+    def test_session_settings_security_configuration(self):
+        from django.conf import settings
+        self.assertEqual(settings.SESSION_COOKIE_AGE, 3600)  # 1 hour
+        self.assertTrue(settings.SESSION_SAVE_EVERY_REQUEST)
+        self.assertTrue(settings.SESSION_COOKIE_HTTPONLY)
+        self.assertEqual(settings.SESSION_COOKIE_SAMESITE, 'Lax')
+        self.assertEqual(settings.X_FRAME_OPTIONS, 'DENY')
+        self.assertTrue(settings.SECURE_CONTENT_TYPE_NOSNIFF)

@@ -37,8 +37,9 @@ class Product(models.Model):
     selling_price = models.DecimalField(
         max_digits=12,
         decimal_places=2,
+        default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
-        help_text="Standard selling price per unit"
+        help_text="Standard base reference price (custom client rates are configured in Construction Tracking)"
     )
     minimum_stock_level = models.PositiveIntegerField(
         default=500,

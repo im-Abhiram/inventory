@@ -52,6 +52,36 @@ class ClientProject(models.Model):
         total = self.daily_entries.aggregate(total=models.Sum('number_of_workers'))['total']
         return total or 0
 
+    def get_product_price(self, product):
+        """Returns the project-specific agreed price if set, otherwise product reference price."""
+        custom_price = self.product_prices.filter(product=product).first()
+        if custom_price:
+            return custom_price.unit_price
+        return getattr(product, 'selling_price', Decimal('0.00'))
+
+
+class ProjectProductPrice(models.Model):
+    project = models.ForeignKey(ClientProject, on_delete=models.CASCADE, related_name='product_prices')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='project_prices')
+    unit_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text="Custom agreed rate per unit for this construction project"
+    )
+    notes = models.CharField(max_length=200, blank=True, null=True, help_text="e.g. Special client price, site quote")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Project Product Price'
+        verbose_name_plural = 'Project Product Prices'
+        unique_together = ('project', 'product')
+        ordering = ['product__name']
+
+    def __str__(self):
+        return f"{self.project.name} - {self.product.name}: ₹{self.unit_price}"
+
 
 class ClientInventory(models.Model):
     project = models.ForeignKey(ClientProject, on_delete=models.CASCADE, related_name='material_inventories')

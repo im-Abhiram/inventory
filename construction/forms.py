@@ -1,9 +1,28 @@
 from django import forms
 from django.forms import inlineformset_factory, BaseInlineFormSet
 from django.utils import timezone
-from .models import ClientProject, DailyConstructionEntry, DailyMaterialUsage, ClientInventory
+from .models import ClientProject, DailyConstructionEntry, DailyMaterialUsage, ClientInventory, ProjectProductPrice
 from clients.models import Client
 from products.models import Product
+
+
+class ProjectProductPriceForm(forms.ModelForm):
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.filter(is_active=True).order_by('name'),
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    unit_price = forms.DecimalField(
+        min_value=0,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'placeholder': 'Agreed price (₹)'})
+    )
+    notes = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional notes (e.g. transport included)'})
+    )
+
+    class Meta:
+        model = ProjectProductPrice
+        fields = ['product', 'unit_price', 'notes']
 
 
 class ClientProjectForm(forms.ModelForm):

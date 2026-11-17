@@ -10,6 +10,15 @@ class UserLoginForm(forms.Form):
     password = forms.CharField(
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Password'})
     )
+    captcha_answer = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control text-center fw-bold',
+            'placeholder': 'Answer',
+            'autocomplete': 'off',
+            'inputmode': 'numeric'
+        })
+    )
 
 
 class UserCreateForm(forms.ModelForm):

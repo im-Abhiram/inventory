@@ -1,12 +1,20 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum
 from decimal import Decimal
-from .models import ClientProject, ClientInventory, ClientStockTransaction, DailyConstructionEntry, DailyMaterialUsage
-from .forms import ClientProjectForm, DailyConstructionEntryForm, DailyMaterialUsageFormSet
+from .models import (
+    ClientProject, ClientInventory, ClientStockTransaction,
+    DailyConstructionEntry, DailyMaterialUsage, ProjectProductPrice
+)
+from .forms import (
+    ClientProjectForm, DailyConstructionEntryForm,
+    DailyMaterialUsageFormSet, ProjectProductPriceForm
+)
 from clients.models import Client
 from products.models import Product
 from accounts.decorators import superadmin_required
@@ -59,6 +67,27 @@ def project_detail(request, project_id):
     dispatches = project.dispatches.prefetch_related('items', 'items__product').order_by('-dispatch_date')
     stock_transactions = project.stock_transactions.select_related('product', 'created_by').order_by('-date', '-created_at')[:20]
 
+    # Construction Project Product Pricing
+    all_products = Product.objects.filter(is_active=True).order_by('name')
+    existing_prices = {pp.product_id: pp for pp in project.product_prices.select_related('product')}
+
+    pricing_items = []
+    custom_pricing_count = 0
+    for prod in all_products:
+        custom_pp = existing_prices.get(prod.id)
+        if custom_pp:
+            custom_pricing_count += 1
+        pricing_items.append({
+            'product': prod,
+            'custom_price': custom_pp.unit_price if custom_pp else None,
+            'notes': custom_pp.notes if custom_pp else '',
+            'updated_at': custom_pp.updated_at if custom_pp else None,
+            'is_custom': custom_pp is not None,
+            'effective_price': custom_pp.unit_price if custom_pp else prod.selling_price
+        })
+
+    price_form = ProjectProductPriceForm()
+
     total_workers_employed = daily_entries.aggregate(total=Sum('number_of_workers'))['total'] or 0
     total_materials_received = sum(inv.total_received for inv in material_inventories)
     total_materials_used = sum(inv.total_used for inv in material_inventories)
@@ -71,6 +100,9 @@ def project_detail(request, project_id):
         'daily_entries': daily_entries,
         'dispatches': dispatches,
         'stock_transactions': stock_transactions,
+        'pricing_items': pricing_items,
+        'price_form': price_form,
+        'custom_pricing_count': custom_pricing_count,
         'total_workers_employed': total_workers_employed,
         'total_materials_received': total_materials_received,
         'total_materials_used': total_materials_used,
@@ -190,3 +222,93 @@ def daily_entry_detail(request, entry_id):
         id=entry_id
     )
     return render(request, 'construction/daily_entry_detail.html', {'entry': entry})
+
+
+@superadmin_required
+def project_price_update(request, project_id):
+    """Add or update custom agreed rate for a single product on a construction site."""
+    project = get_object_or_404(ClientProject, id=project_id)
+    if request.method == 'POST':
+        product_id = request.POST.get('product')
+        unit_price_str = request.POST.get('unit_price', '').strip()
+        notes = request.POST.get('notes', '').strip()
+
+        if not product_id or not unit_price_str:
+            messages.error(request, "Product and unit price are required.")
+            return redirect(f"{reverse('construction:project_detail', args=[project.id])}?tab=pricing")
+
+        try:
+            unit_price = Decimal(unit_price_str)
+            if unit_price < 0:
+                raise ValueError
+        except Exception:
+            messages.error(request, "Please enter a valid non-negative price.")
+            return redirect(f"{reverse('construction:project_detail', args=[project.id])}?tab=pricing")
+
+        product = get_object_or_404(Product, id=product_id)
+        obj, created = ProjectProductPrice.objects.update_or_create(
+            project=project,
+            product=product,
+            defaults={'unit_price': unit_price, 'notes': notes}
+        )
+        action_word = "configured" if created else "updated"
+        messages.success(
+            request,
+            f"Agreed price for '{product.name}' {action_word} to ₹{unit_price:,.2f} for site '{project.name}'."
+        )
+
+    return redirect(f"{reverse('construction:project_detail', args=[project.id])}?tab=pricing")
+
+
+@superadmin_required
+def project_prices_bulk_update(request, project_id):
+    """Bulk update agreed product prices for all active products on a construction site."""
+    project = get_object_or_404(ClientProject, id=project_id)
+    if request.method == 'POST':
+        updated_count = 0
+        products = Product.objects.filter(is_active=True)
+
+        for prod in products:
+            price_field = f"price_{prod.id}"
+            notes_field = f"notes_{prod.id}"
+            if price_field in request.POST:
+                val = request.POST.get(price_field, '').strip()
+                notes = request.POST.get(notes_field, '').strip()
+                if val != '':
+                    try:
+                        unit_price = Decimal(val)
+                        if unit_price >= 0:
+                            ProjectProductPrice.objects.update_or_create(
+                                project=project,
+                                product=prod,
+                                defaults={'unit_price': unit_price, 'notes': notes}
+                            )
+                            updated_count += 1
+                    except Exception:
+                        pass
+
+        messages.success(
+            request,
+            f"Successfully updated agreed product rates for {updated_count} product(s) on site '{project.name}'."
+        )
+
+    return redirect(f"{reverse('construction:project_detail', args=[project.id])}?tab=pricing")
+
+
+@superadmin_required
+def project_price_delete(request, project_id, product_id):
+    """Reverts product pricing on site back to default reference price."""
+    project = get_object_or_404(ClientProject, id=project_id)
+    product = get_object_or_404(Product, id=product_id)
+    deleted, _ = ProjectProductPrice.objects.filter(project=project, product=product).delete()
+    if deleted:
+        messages.info(request, f"Removed custom rate for '{product.name}'. Site will now use default reference price.")
+    return redirect(f"{reverse('construction:project_detail', args=[project.id])}?tab=pricing")
+
+
+@login_required
+def project_prices_json(request, project_id):
+    """JSON API returning agreed product prices for this construction project."""
+    project = get_object_or_404(ClientProject, id=project_id)
+    prices = {pp.product_id: float(pp.unit_price) for pp in project.product_prices.all()}
+    return JsonResponse({'project_id': project.id, 'prices': prices})

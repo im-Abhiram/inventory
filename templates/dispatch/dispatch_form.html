@@ -137,10 +137,23 @@
 {% block extra_scripts %}
 <script>
     const productsData = {{ products_data|safe }};
+    const projectPrices = {{ project_prices_json|default:'{}'|safe }};
+    const clientProjects = {{ client_projects_json|default:'{}'|safe }};
+
     const productPriceMap = {};
     productsData.forEach(p => {
         productPriceMap[p.id] = { price: p.selling_price, stock: p.inventory__current_stock, unit: p.unit };
     });
+
+    // Determine effective price: uses custom construction site agreed rate first, falls back to base ref price
+    function getEffectivePrice(productId) {
+        const projectSelect = document.getElementById('id_project');
+        const projId = projectSelect ? projectSelect.value : null;
+        if (projId && projectPrices[projId] && projectPrices[projId][productId] !== undefined) {
+            return projectPrices[projId][productId];
+        }
+        return productPriceMap[productId] ? productPriceMap[productId].price : 0;
+    }
 
     function recalculateTotals() {
         let grandTotal = 0;
@@ -176,8 +189,8 @@
         if (prodSelect) {
             prodSelect.addEventListener('change', () => {
                 const prodId = prodSelect.value;
-                if (productPriceMap[prodId] && priceInput && (!priceInput.value || priceInput.value === '0.00' || priceInput.value === '0')) {
-                    priceInput.value = productPriceMap[prodId].price;
+                if (prodId && priceInput) {
+                    priceInput.value = getEffectivePrice(prodId);
                 }
                 recalculateTotals();
             });
@@ -202,6 +215,60 @@
                 }
                 recalculateTotals();
             });
+        }
+    }
+
+    // Client and Construction Project Dynamic Linkage
+    const clientSelect = document.getElementById('id_client');
+    const projectSelect = document.getElementById('id_project');
+
+    if (projectSelect) {
+        // When project changes, update prices in rows to match that construction site's rates
+        projectSelect.addEventListener('change', () => {
+            document.querySelectorAll('.item-row').forEach(row => {
+                const prodSelect = row.querySelector('.product-select');
+                const priceInput = row.querySelector('.item-price');
+                if (prodSelect && prodSelect.value && priceInput) {
+                    priceInput.value = getEffectivePrice(prodSelect.value);
+                }
+            });
+            recalculateTotals();
+        });
+    }
+
+    if (clientSelect && projectSelect) {
+        const originalProjects = Array.from(projectSelect.options).map(opt => ({
+            value: opt.value,
+            text: opt.text
+        }));
+
+        function filterProjectsByClient(clientId) {
+            const currentSelected = projectSelect.value;
+            projectSelect.innerHTML = '';
+            projectSelect.appendChild(new Option('---------', ''));
+
+            if (!clientId) {
+                originalProjects.forEach(opt => {
+                    if (opt.value) projectSelect.appendChild(new Option(opt.text, opt.value));
+                });
+            } else if (clientProjects[clientId]) {
+                clientProjects[clientId].forEach(proj => {
+                    projectSelect.appendChild(new Option(proj.name, proj.id));
+                });
+            }
+            if (currentSelected && projectSelect.querySelector(`option[value="${currentSelected}"]`)) {
+                projectSelect.value = currentSelected;
+            }
+        }
+
+        clientSelect.addEventListener('change', function() {
+            filterProjectsByClient(this.value);
+            // Trigger price refresh
+            projectSelect.dispatchEvent(new Event('change'));
+        });
+
+        if (clientSelect.value) {
+            filterProjectsByClient(clientSelect.value);
         }
     }
 

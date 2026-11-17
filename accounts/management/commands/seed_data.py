@@ -8,7 +8,7 @@ from accounts.models import UserProfile
 from products.models import Product, ProductCategory
 from inventory.models import FactoryInventory, StockTransaction, ProductPurchase
 from clients.models import Client
-from construction.models import ClientProject, ClientInventory
+from construction.models import ClientProject, ClientInventory, ProjectProductPrice
 from finance.models import ExpenseCategory, Payment, Expense
 from workers.models import Worker, WorkerAttendance
 from production.models import ProductionEntry
@@ -245,6 +245,28 @@ class Command(BaseCommand):
                 'status': ClientProject.STATUS_ACTIVE,
                 'description': 'Commercial showroom and retail complex'
             }
+        )
+
+        # 9. Agreed Construction Site Product Pricing
+        ProjectProductPrice.objects.get_or_create(
+            project=p_sky,
+            product=p1,
+            defaults={'unit_price': Decimal('33.50'), 'notes': 'Agreed project rate'}
+        )
+        ProjectProductPrice.objects.get_or_create(
+            project=p_sky,
+            product=p2,
+            defaults={'unit_price': Decimal('42.00'), 'notes': 'Long-distance transport included'}
+        )
+        ProjectProductPrice.objects.get_or_create(
+            project=p_grn,
+            product=p1,
+            defaults={'unit_price': Decimal('31.00'), 'notes': 'Bulk project discount'}
+        )
+        ProjectProductPrice.objects.get_or_create(
+            project=p_grn,
+            product=p3,
+            defaults={'unit_price': Decimal('44.00'), 'notes': 'Commercial volume rate'}
         )
 
         # Ensure ClientAccounts are fresh

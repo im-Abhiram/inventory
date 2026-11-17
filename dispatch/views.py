@@ -1,4 +1,5 @@
 import uuid
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -12,7 +13,7 @@ from .forms import DispatchForm, DispatchItemFormSet
 from products.models import Product
 from clients.models import Client
 from inventory.models import FactoryInventory, StockTransaction
-from construction.models import ClientInventory, ClientStockTransaction
+from construction.models import ClientInventory, ClientStockTransaction, ClientProject, ProjectProductPrice
 from accounts.decorators import superadmin_required
 
 
@@ -152,14 +153,42 @@ def dispatch_create(request):
                 return redirect('dispatch:dispatch_detail', dispatch_id=dispatch.id)
     else:
         initial_client = request.GET.get('client')
-        form = DispatchForm(initial={'client': initial_client} if initial_client else None)
+        initial_project = request.GET.get('project')
+        initial_data = {}
+        if initial_client:
+            initial_data['client'] = initial_client
+        if initial_project:
+            initial_data['project'] = initial_project
+        form = DispatchForm(initial=initial_data if initial_data else None)
         formset = DispatchItemFormSet()
 
-    products = Product.objects.filter(is_active=True).values('id', 'name', 'selling_price', 'inventory__current_stock', 'unit')
+    products = list(Product.objects.filter(is_active=True).values('id', 'name', 'selling_price', 'inventory__current_stock', 'unit'))
+
+    # Build Project Product Pricing Map: { project_id: { product_id: unit_price } }
+    project_prices_qs = ProjectProductPrice.objects.all().values('project_id', 'product_id', 'unit_price')
+    project_prices_map = {}
+    for pp in project_prices_qs:
+        p_id = str(pp['project_id'])
+        prod_id = str(pp['product_id'])
+        if p_id not in project_prices_map:
+            project_prices_map[p_id] = {}
+        project_prices_map[p_id][prod_id] = float(pp['unit_price'])
+
+    # Build Client Projects Map: { client_id: [ { id, name }, ... ] }
+    projects_qs = ClientProject.objects.exclude(status='Cancelled').values('id', 'name', 'client_id').order_by('name')
+    client_projects_map = {}
+    for p in projects_qs:
+        c_id = str(p['client_id'])
+        if c_id not in client_projects_map:
+            client_projects_map[c_id] = []
+        client_projects_map[c_id].append({'id': p['id'], 'name': p['name']})
+
     return render(request, 'dispatch/dispatch_form.html', {
         'form': form,
         'formset': formset,
-        'products_data': list(products),
+        'products_data': products,
+        'project_prices_json': json.dumps(project_prices_map),
+        'client_projects_json': json.dumps(client_projects_map),
     })
 
 

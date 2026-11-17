@@ -112,3 +112,41 @@ class ConstructionTrackingTests(TestCase):
         # Site stock must remain untouched (800)
         self.site_inv.refresh_from_db()
         self.assertEqual(self.site_inv.current_stock, 800)
+
+
+    def test_construction_site_custom_product_pricing(self):
+        from construction.models import ProjectProductPrice
+        self.client.login(username='const_admin', password='Pass123!')
+
+        # 1. Before custom price is set, project returns product's default price
+        self.assertEqual(self.project.get_product_price(self.product), Decimal('25.00'))
+
+        # 2. Configure agreed site rate of ₹28.50 for this project
+        response = self.client.post(
+            reverse('construction:project_price_update', kwargs={'project_id': self.project.id}),
+            {
+                'product': self.product.id,
+                'unit_price': '28.50',
+                'notes': 'Special agreed site rate'
+            }
+        )
+        self.assertEqual(response.status_code, 302)
+
+        # 3. Verify custom price applied
+        self.assertEqual(self.project.get_product_price(self.product), Decimal('28.50'))
+
+        # 4. JSON endpoint returns the custom price
+        json_resp = self.client.get(
+            reverse('construction:project_prices_json', kwargs={'project_id': self.project.id})
+        )
+        self.assertEqual(json_resp.status_code, 200)
+        json_data = json_resp.json()
+        self.assertIn('prices', json_data)
+        self.assertEqual(json_data['prices'][str(self.product.id)], 28.50)
+
+        # 5. Delete custom price reverts back to default reference price
+        del_resp = self.client.get(
+            reverse('construction:project_price_delete', kwargs={'project_id': self.project.id, 'product_id': self.product.id})
+        )
+        self.assertEqual(del_resp.status_code, 302)
+        self.assertEqual(self.project.get_product_price(self.product), Decimal('25.00'))

@@ -103,3 +103,37 @@ class DispatchManagementTests(TestCase):
         # Ensure factory stock was NOT altered
         self.product.inventory.refresh_from_db()
         self.assertEqual(self.product.inventory.current_stock, 1000)
+
+
+    def test_dispatch_with_construction_site_custom_price(self):
+        from construction.models import ProjectProductPrice
+        self.client.login(username='dsp_admin', password='Pass123!')
+
+        # Set custom site price of ₹48.00 (instead of default ₹42.00)
+        ProjectProductPrice.objects.create(
+            project=self.project,
+            product=self.product,
+            unit_price=Decimal('48.00')
+        )
+
+        data = {
+            'dispatch_date': '2026-11-10',
+            'client': self.customer.id,
+            'project': self.project.id,
+            'vehicle_number': 'KL-07-ZZ-1111',
+            'driver_name': 'Ramesh',
+            'items-TOTAL_FORMS': '1',
+            'items-INITIAL_FORMS': '0',
+            'items-MIN_NUM_FORMS': '0',
+            'items-MAX_NUM_FORMS': '1000',
+            'items-0-product': self.product.id,
+            'items-0-quantity': '100',
+            'items-0-unit_price': '48.00',
+        }
+
+        response = self.client.post(reverse('dispatch:dispatch_create'), data)
+        self.assertEqual(response.status_code, 302)
+
+        dispatch = Dispatch.objects.filter(vehicle_number='KL-07-ZZ-1111').first()
+        self.assertIsNotNone(dispatch)
+        self.assertEqual(dispatch.total_amount, Decimal('4800.00'))

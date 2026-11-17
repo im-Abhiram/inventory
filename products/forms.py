@@ -18,6 +18,9 @@ class ProductForm(forms.ModelForm):
             'minimum_stock_level': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 500'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+        help_texts = {
+            'selling_price': 'Base reference price (custom customer rates are configured per site in Construction Tracking).',
+        }
 
     def clean_code(self):
         code = self.cleaned_data.get('code', '').strip().upper()

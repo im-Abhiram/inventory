@@ -31,23 +31,29 @@ Designed specifically for zero-maintenance operation and turnkey deployment on *
    - Support for **Credit Accounts** (with credit limits and balance tracking) and **Cash Clients** (for direct-pay customers).
    - Complete 360° client profile: overview, dispatch history, client site stock, construction tracking, payments, and account ledger.
 
-5. **Client Construction Site Tracking**
+5. **Client Construction Site Tracking & Dynamic Pricing**
+   - **Custom Site Product Pricing**: Products no longer mandate a rigid fixed price; different agreed rates can be configured per customer/construction site. Dispatches automatically fetch site rates.
    - Track materials delivered to client sites and materials consumed on-site each day.
    - Formula:
      $$\text{Client Available Stock} = \text{Opening} + \text{Received (Dispatch)} - \text{Used}$$
    - Daily construction logs tracking progress %, worker attendance on-site, and material usage.
 
-6. **Dispatch & Delivery Management**
-   - Multi-item dispatch consignments with real-time price and stock checks.
+6. **Security & Session Hardening**
+   - **Math CAPTCHA**: Addition/subtraction bot challenge on login to block automated attacks.
+   - **1-Hour Session Timeout**: Exactly 3600 seconds with rolling session activity update.
+   - **Attack Protections**: Clickjacking defense (`DENY`), XSS filter, `nosniff` MIME header, strict referrer policy, host header attack prevention, and brute-force lockout safeguards.
+
+7. **Dispatch & Delivery Management**
+   - Multi-item dispatch consignments with real-time price and stock checks (auto-populates agreed site rates).
    - Auto-deducts factory finished inventory and adds to client construction site stock (if linked).
    - Printable Delivery Challan / Tax Invoice vouchers.
 
-7. **Finance, Billing & Expenses**
+8. **Finance, Billing & Expenses**
    - Record client payments with automatic or manual FIFO dispatch allocation.
    - Operating expense logging across customizable categories (Fuel, Wages, Electricity, Transport, Maintenance, etc.).
    - Client statements and outstanding balance management.
 
-8. **Workers & Attendance**
+9. **Workers & Attendance**
    - Worker directory, roles (Mason, Operator, Helper, Driver, Supervisor), daily wage rates, and daily attendance records.
 
 9. **Analytics & Reports**

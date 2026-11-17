@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import ClientProject, ClientInventory, ClientStockTransaction, DailyConstructionEntry, DailyMaterialUsage
+from .models import (
+    ClientProject, ClientInventory, ClientStockTransaction,
+    DailyConstructionEntry, DailyMaterialUsage, ProjectProductPrice
+)
+
+
+class ProjectProductPriceInline(admin.TabularInline):
+    model = ProjectProductPrice
+    extra = 1
 
 
 class DailyMaterialUsageInline(admin.TabularInline):
@@ -12,6 +20,14 @@ class ClientProjectAdmin(admin.ModelAdmin):
     list_display = ('name', 'client', 'location', 'start_date', 'status')
     list_filter = ('status', 'start_date')
     search_fields = ('name', 'client__name', 'location')
+    inlines = [ProjectProductPriceInline]
+
+
+@admin.register(ProjectProductPrice)
+class ProjectProductPriceAdmin(admin.ModelAdmin):
+    list_display = ('project', 'product', 'unit_price', 'updated_at')
+    list_filter = ('product', 'project')
+    search_fields = ('project__name', 'product__name')
 
 
 @admin.register(ClientInventory)

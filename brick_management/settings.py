@@ -18,9 +18,21 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+# Host Header attack prevention
+allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS')
+if allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in allowed_hosts_env.split(',') if h.strip()]
+else:
+    ALLOWED_HOSTS = [
+        '127.0.0.1',
+        'localhost',
+        'thamarayyathproduction.pythonanywhere.com',
+        '.pythonanywhere.com',
+        '*',  # Permissive fallback for local dev & testing
+    ]
 
 CSRF_TRUSTED_ORIGINS = [
+    'https://thamarayyathproduction.pythonanywhere.com',
     'https://*.pythonanywhere.com',
     'http://127.0.0.1',
     'http://localhost',
@@ -124,3 +136,43 @@ LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'accounts:login'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ==============================================================================
+# SECURITY & SESSION HARDENING
+# ==============================================================================
+# 1-Hour Session Timeout: Exactly 3600 seconds
+SESSION_COOKIE_AGE = 3600
+# Rolling session: update session expiration timestamp on each user request
+SESSION_SAVE_EVERY_REQUEST = True
+# Invalidate session cookie immediately when user closes the browser
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# Session cookie protection against XSS (JavaScript cannot access session id)
+SESSION_COOKIE_HTTPONLY = True
+# Prevent CSRF attacks via cross-site requests
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+# CSRF Cookie Security
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_AGE = 3600
+
+# Defense-in-Depth Attack Protection Headers:
+# Prohibit embedding in external iframes (Clickjacking protection)
+X_FRAME_OPTIONS = 'DENY'
+# Prevent browsers from MIME-sniffing response away from declared content-type
+SECURE_CONTENT_TYPE_NOSNIFF = True
+# Enable browser XSS filter
+SECURE_BROWSER_XSS_FILTER = True
+# Protect referrer privacy and URL leaks
+SECURE_REFERRER_POLICY = 'same-origin'
+
+# PythonAnywhere Reverse Proxy SSL Header
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# HTTPS Cookies when running in production (not in DEBUG mode)
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
