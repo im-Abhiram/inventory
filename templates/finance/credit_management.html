@@ -147,7 +147,7 @@
                                             <p class="small text-muted mb-2">Set new credit limit for <strong>{{ c.name }}</strong>:</p>
                                             <div class="input-group">
                                                 <span class="input-group-text">₹</span>
-                                                <input type="number" step="1000" name="credit_limit" value="{{ c.credit_limit }}" class="form-control" required>
+                                                <input type="number" step="any" min="0" name="credit_limit" value="{{ c.credit_limit }}" class="form-control" required>
                                             </div>
                                         </div>
                                         <div class="modal-footer py-2">

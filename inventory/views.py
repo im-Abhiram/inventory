@@ -18,7 +18,7 @@ def inventory_list(request):
     status_filter = request.GET.get('status', '').strip()
     category_id = request.GET.get('category', '').strip()
 
-    inventories = FactoryInventory.objects.select_related('product', 'product__category').all()
+    inventories = FactoryInventory.objects.select_related('product', 'product__category').all().order_by('product__name')
 
     if search_query:
         inventories = inventories.filter(

@@ -27,7 +27,7 @@ def dashboard_view(request):
         # --- Accountant Dashboard ---
         # Outstanding credit
         all_accounts = ClientAccount.objects.select_related('client').filter(client__is_active=True)
-        total_outstanding = sum(acc.current_balance for acc in all_accounts if acc.current_balance > Decimal('0.00'))
+        total_outstanding = sum((acc.current_balance or Decimal('0.00')) for acc in all_accounts if (acc.current_balance or Decimal('0.00')) > Decimal('0.00'))
         
         # Today's payments
         today_payments = Payment.objects.filter(payment_date=today).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
@@ -40,8 +40,8 @@ def dashboard_view(request):
         month_expenses = Expense.objects.filter(expense_date__gte=start_of_month).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
         # Client balances
-        clients_with_balance = [acc for acc in all_accounts if acc.current_balance > Decimal('0.00')]
-        clients_with_balance.sort(key=lambda x: x.current_balance, reverse=True)
+        clients_with_balance = [acc for acc in all_accounts if (acc.current_balance or Decimal('0.00')) > Decimal('0.00')]
+        clients_with_balance.sort(key=lambda x: (x.current_balance or Decimal('0.00')), reverse=True)
 
         recent_payments = Payment.objects.select_related('client', 'recorded_by').order_by('-payment_date', '-created_at')[:10]
 

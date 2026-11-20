@@ -80,77 +80,80 @@ def dispatch_create(request):
         formset = DispatchItemFormSet(request.POST)
 
         if form.is_valid() and formset.is_valid():
-            with transaction.atomic():
-                dispatch = form.save(commit=False)
-                dispatch.dispatch_number = generate_dispatch_number()
-                dispatch.created_by = request.user
-                dispatch.total_amount = Decimal('0.00')
-                dispatch.save()
+            try:
+                with transaction.atomic():
+                    dispatch = form.save(commit=False)
+                    dispatch.dispatch_number = generate_dispatch_number()
+                    dispatch.created_by = request.user
+                    dispatch.total_amount = Decimal('0.00')
+                    dispatch.save()
 
-                formset.instance = dispatch
-                items = formset.save(commit=False)
+                    formset.instance = dispatch
+                    items = formset.save(commit=False)
 
-                total_amount = Decimal('0.00')
-                for item in items:
-                    item_total = Decimal(str(item.quantity)) * item.unit_price
-                    item.total_price = item_total
-                    item.save()
-                    total_amount += item_total
+                    total_amount = Decimal('0.00')
+                    for item in items:
+                        item_total = Decimal(str(item.quantity)) * item.unit_price
+                        item.total_price = item_total
+                        item.save()
+                        total_amount += item_total
 
-                    # Deduct from Factory Inventory
-                    factory_inv, _ = FactoryInventory.objects.get_or_create(product=item.product)
-                    if factory_inv.current_stock < item.quantity:
-                        raise ValueError(f"Stock error: Not enough stock for {item.product.name}")
+                        # Deduct from Factory Inventory
+                        factory_inv, _ = FactoryInventory.objects.get_or_create(product=item.product)
+                        if factory_inv.current_stock < item.quantity:
+                            raise ValueError(f"Insufficient factory stock for '{item.product.name}'. Available: {factory_inv.current_stock} {item.product.unit}.")
 
-                    factory_inv.total_dispatch += item.quantity
-                    new_factory_stock = factory_inv.recalculate()
-                    factory_inv.save()
+                        factory_inv.total_dispatch += item.quantity
+                        new_factory_stock = factory_inv.recalculate()
+                        factory_inv.save()
 
-                    StockTransaction.objects.create(
-                        product=item.product,
-                        transaction_type=StockTransaction.TYPE_DISPATCH,
-                        quantity=item.quantity,
-                        balance_after=new_factory_stock,
-                        date=dispatch.dispatch_date,
-                        reference=dispatch.dispatch_number,
-                        notes=f"Dispatched to {dispatch.client.name} | Vehicle: {dispatch.vehicle_number or 'N/A'}",
-                        created_by=request.user
-                    )
-
-                    # If assigned to a client construction project, increase project site stock
-                    if dispatch.project:
-                        client_inv, _ = ClientInventory.objects.get_or_create(
-                            project=dispatch.project,
-                            product=item.product
-                        )
-                        client_inv.total_received += item.quantity
-                        new_client_stock = client_inv.recalculate()
-                        client_inv.save()
-
-                        ClientStockTransaction.objects.create(
-                            project=dispatch.project,
+                        StockTransaction.objects.create(
                             product=item.product,
-                            transaction_type=ClientStockTransaction.TYPE_RECEIVED,
+                            transaction_type=StockTransaction.TYPE_DISPATCH,
                             quantity=item.quantity,
-                            balance_after=new_client_stock,
+                            balance_after=new_factory_stock,
                             date=dispatch.dispatch_date,
                             reference=dispatch.dispatch_number,
-                            notes=f"Received via dispatch {dispatch.dispatch_number}",
+                            notes=f"Dispatched to {dispatch.client.name} | Vehicle: {dispatch.vehicle_number or 'N/A'}",
                             created_by=request.user
                         )
 
-                dispatch.total_amount = total_amount
-                dispatch.save()
+                        # If assigned to a client construction project, increase project site stock
+                        if dispatch.project:
+                            client_inv, _ = ClientInventory.objects.get_or_create(
+                                project=dispatch.project,
+                                product=item.product
+                            )
+                            client_inv.total_received += item.quantity
+                            new_client_stock = client_inv.recalculate()
+                            client_inv.save()
 
-                # Recalculate client's financial account
-                if hasattr(dispatch.client, 'account'):
-                    dispatch.client.account.recalculate()
+                            ClientStockTransaction.objects.create(
+                                project=dispatch.project,
+                                product=item.product,
+                                transaction_type=ClientStockTransaction.TYPE_RECEIVED,
+                                quantity=item.quantity,
+                                balance_after=new_client_stock,
+                                date=dispatch.dispatch_date,
+                                reference=dispatch.dispatch_number,
+                                notes=f"Received via dispatch {dispatch.dispatch_number}",
+                                created_by=request.user
+                            )
 
-                messages.success(
-                    request,
-                    f"Dispatch {dispatch.dispatch_number} for {dispatch.client.name} (₹{total_amount}) recorded successfully."
-                )
-                return redirect('dispatch:dispatch_detail', dispatch_id=dispatch.id)
+                    dispatch.total_amount = total_amount
+                    dispatch.save()
+
+                    # Recalculate client's financial account
+                    if hasattr(dispatch.client, 'account'):
+                        dispatch.client.account.recalculate()
+
+                    messages.success(
+                        request,
+                        f"Dispatch {dispatch.dispatch_number} for {dispatch.client.name} (₹{total_amount:,.2f}) recorded successfully."
+                    )
+                    return redirect('dispatch:dispatch_detail', dispatch_id=dispatch.id)
+            except ValueError as e:
+                messages.error(request, str(e))
     else:
         initial_client = request.GET.get('client')
         initial_project = request.GET.get('project')

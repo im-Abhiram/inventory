@@ -230,13 +230,25 @@ def client_credit_report(request):
     export_csv = request.GET.get('export', '') == 'csv'
     clients = Client.objects.select_related('account').filter(is_active=True).order_by('name')
 
+    client_data = []
     for c in clients:
-        if hasattr(c, 'account'):
-            c.account.recalculate()
+        try:
+            acc = getattr(c, 'account', None)
+            if not acc:
+                acc, _ = ClientAccount.objects.get_or_create(
+                    client=c,
+                    defaults={
+                        'opening_balance': c.opening_balance or Decimal('0.00'),
+                        'current_balance': c.opening_balance or Decimal('0.00')
+                    }
+                )
+                c.account = acc
+        except Exception:
+            pass
+        client_data.append(c)
 
-    client_data = list(clients)
-    total_credit_limit = sum(c.credit_limit for c in client_data)
-    total_outstanding = sum(c.outstanding_balance for c in client_data)
+    total_credit_limit = sum((c.credit_limit or Decimal('0.00')) for c in client_data)
+    total_outstanding = sum((c.outstanding_balance or Decimal('0.00')) for c in client_data)
 
     if export_csv:
         response = HttpResponse(content_type='text/csv')
@@ -246,11 +258,11 @@ def client_credit_report(request):
         for c in client_data:
             writer.writerow([
                 c.name,
-                c.code,
-                c.phone,
-                c.credit_limit,
-                c.outstanding_balance,
-                c.available_credit,
+                c.code or '',
+                c.phone or '',
+                c.credit_limit or Decimal('0.00'),
+                c.outstanding_balance or Decimal('0.00'),
+                c.available_credit or Decimal('0.00'),
                 'YES' if c.is_credit_exceeded else 'NO'
             ])
         return response

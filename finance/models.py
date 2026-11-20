@@ -48,13 +48,23 @@ class ClientAccount(models.Model):
         Recalculates balance from scratch:
         Outstanding Balance = Opening Balance + Total Dispatched - Total Paid + Adjustments
         """
-        dispatches_sum = self.client.dispatches.aggregate(total=models.Sum('total_amount'))['total'] or Decimal('0.00')
-        payments_sum = self.client.payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
-        
+        try:
+            dispatches_sum = self.client.dispatches.aggregate(total=models.Sum('total_amount'))['total'] or Decimal('0.00')
+        except Exception:
+            dispatches_sum = Decimal('0.00')
+
+        try:
+            payments_sum = self.client.payments.aggregate(total=models.Sum('amount'))['total'] or Decimal('0.00')
+        except Exception:
+            payments_sum = Decimal('0.00')
+
+        opening = self.opening_balance if self.opening_balance is not None else Decimal('0.00')
+        adj = self.adjustments if self.adjustments is not None else Decimal('0.00')
+
         self.total_dispatched = dispatches_sum
         self.total_paid = payments_sum
-        self.current_balance = (self.opening_balance + self.total_dispatched - self.total_paid) + self.adjustments
-        self.save()
+        self.current_balance = (opening + self.total_dispatched - self.total_paid) + adj
+        self.save(update_fields=['total_dispatched', 'total_paid', 'current_balance', 'last_updated'])
         return self.current_balance
 
 

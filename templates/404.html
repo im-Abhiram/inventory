@@ -1,0 +1,27 @@
+{% extends 'base/base.html' %}
+
+{% block title %}Page Not Found (404) - Brick Management{% endblock %}
+
+{% block content %}
+<div class="container py-5 text-center" style="max-width: 600px;">
+    <div class="card border-0 shadow-sm rounded-4 p-5">
+        <div class="mb-3">
+            <span class="d-inline-flex p-3 rounded-circle bg-warning bg-opacity-10 text-warning-emphasis fs-1">
+                <i class="bi bi-exclamation-triangle"></i>
+            </span>
+        </div>
+        <h3 class="fw-bold text-dark mb-2">Page Not Found (404)</h3>
+        <p class="text-muted mb-4">
+            The requested page or record could not be found. It may have been moved, removed, or the link may be outdated.
+        </p>
+        <div class="d-flex justify-content-center gap-2">
+            <a href="{% url 'dashboard' %}" class="btn btn-brick px-4">
+                <i class="bi bi-house me-1"></i> Return to Dashboard
+            </a>
+            <button onclick="window.history.back()" class="btn btn-light border px-4">
+                <i class="bi bi-arrow-left me-1"></i> Go Back
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -156,50 +156,53 @@ def daily_entry_create(request, project_id):
         formset = DailyMaterialUsageFormSet(request.POST, project=project)
 
         if form.is_valid() and formset.is_valid():
-            with transaction.atomic():
-                entry = form.save(commit=False)
-                entry.project = project
-                entry.created_by = request.user
-                entry.save()
+            try:
+                with transaction.atomic():
+                    entry = form.save(commit=False)
+                    entry.project = project
+                    entry.created_by = request.user
+                    entry.save()
 
-                formset.instance = entry
-                usages = formset.save(commit=False)
+                    formset.instance = entry
+                    usages = formset.save(commit=False)
 
-                for usage in usages:
-                    usage.unit = usage.product.unit
-                    usage.save()
+                    for usage in usages:
+                        usage.unit = usage.product.unit
+                        usage.save()
 
-                    # Deduct from ClientInventory at project site
-                    client_inv, _ = ClientInventory.objects.get_or_create(
-                        project=project,
-                        product=usage.product
+                        # Deduct from ClientInventory at project site
+                        client_inv, _ = ClientInventory.objects.get_or_create(
+                            project=project,
+                            product=usage.product
+                        )
+                        if client_inv.current_stock < usage.quantity_used:
+                            raise ValueError(f"Insufficient site stock for '{usage.product.name}'. Available: {client_inv.current_stock} {usage.product.unit}.")
+
+                        client_inv.total_used += usage.quantity_used
+                        new_client_stock = client_inv.recalculate()
+                        client_inv.save()
+
+                        # Create ClientStockTransaction
+                        ClientStockTransaction.objects.create(
+                            project=project,
+                            product=usage.product,
+                            transaction_type=ClientStockTransaction.TYPE_USAGE,
+                            quantity=usage.quantity_used,
+                            balance_after=new_client_stock,
+                            date=entry.date,
+                            reference=f"DAILY-{entry.id}",
+                            notes=f"Used on site: {usage.notes or ''}".strip(),
+                            created_by=request.user
+                        )
+                        # NOTE: Factory stock is NOT modified. It was reduced when dispatched.
+
+                    messages.success(
+                        request,
+                        f"Daily progress and material usage for {project.name} on {entry.date} recorded successfully."
                     )
-                    if client_inv.current_stock < usage.quantity_used:
-                        raise ValueError(f"Site stock error: Not enough stock for {usage.product.name}")
-
-                    client_inv.total_used += usage.quantity_used
-                    new_client_stock = client_inv.recalculate()
-                    client_inv.save()
-
-                    # Create ClientStockTransaction
-                    ClientStockTransaction.objects.create(
-                        project=project,
-                        product=usage.product,
-                        transaction_type=ClientStockTransaction.TYPE_USAGE,
-                        quantity=usage.quantity_used,
-                        balance_after=new_client_stock,
-                        date=entry.date,
-                        reference=f"DAILY-{entry.id}",
-                        notes=f"Used on site: {usage.notes or ''}".strip(),
-                        created_by=request.user
-                    )
-                    # NOTE: Factory stock is NOT modified. It was reduced when dispatched.
-
-                messages.success(
-                    request,
-                    f"Daily progress and material usage for {project.name} on {entry.date} recorded successfully."
-                )
-                return redirect('construction:project_detail', project_id=project.id)
+                    return redirect('construction:project_detail', project_id=project.id)
+            except ValueError as e:
+                messages.error(request, str(e))
     else:
         form = DailyConstructionEntryForm()
         formset = DailyMaterialUsageFormSet(project=project)

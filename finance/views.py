@@ -170,19 +170,31 @@ def credit_management(request):
             Q(phone__icontains=search_query)
         )
 
-    # Ensure accounts are fresh
+    # Ensure accounts exist and are ready
+    client_list_data = []
     for c in clients:
-        if hasattr(c, 'account'):
-            c.account.recalculate()
+        try:
+            acc = getattr(c, 'account', None)
+            if not acc:
+                acc, _ = ClientAccount.objects.get_or_create(
+                    client=c,
+                    defaults={
+                        'opening_balance': c.opening_balance or Decimal('0.00'),
+                        'current_balance': c.opening_balance or Decimal('0.00')
+                    }
+                )
+                c.account = acc
+        except Exception:
+            pass
+        client_list_data.append(c)
 
-    client_list_data = list(clients)
     if status_filter == 'exceeded':
         client_list_data = [c for c in client_list_data if c.is_credit_exceeded]
     elif status_filter == 'available':
         client_list_data = [c for c in client_list_data if not c.is_credit_exceeded]
 
-    total_credit_limit = sum(c.credit_limit for c in client_list_data)
-    total_outstanding = sum(c.outstanding_balance for c in client_list_data)
+    total_credit_limit = sum((c.credit_limit or Decimal('0.00')) for c in client_list_data)
+    total_outstanding = sum((c.outstanding_balance or Decimal('0.00')) for c in client_list_data)
     total_exceeded = sum(1 for c in client_list_data if c.is_credit_exceeded)
 
     paginator = Paginator(client_list_data, 15)
@@ -203,12 +215,16 @@ def credit_management(request):
 def update_credit_limit(request, client_id):
     client = get_object_or_404(Client, id=client_id)
     if request.method == 'POST':
-        new_limit = request.POST.get('credit_limit')
+        new_limit = request.POST.get('credit_limit', '').strip()
         if new_limit:
             try:
-                client.credit_limit = Decimal(new_limit)
-                client.save(update_fields=['credit_limit'])
-                messages.success(request, f"Credit limit for {client.name} updated to ₹{client.credit_limit}.")
+                val = Decimal(new_limit)
+                if val < Decimal('0.00'):
+                    messages.error(request, "Credit limit cannot be negative.")
+                else:
+                    client.credit_limit = val
+                    client.save()
+                    messages.success(request, f"Credit limit for {client.name} updated to ₹{client.credit_limit:,.2f}.")
             except Exception:
                 messages.error(request, "Invalid credit limit value.")
     return redirect('finance:credit_management')

@@ -67,7 +67,28 @@ class Client(models.Model):
         if self.payment_type == self.PAYMENT_TYPE_CASH and (self.credit_limit is None or self.credit_limit == Decimal('50000.00')):
             self.credit_limit = Decimal('0.00')
 
+        if self.credit_limit is None:
+            self.credit_limit = Decimal('0.00')
+        if self.opening_balance is None:
+            self.opening_balance = Decimal('0.00')
+
         super().save(*args, **kwargs)
+
+        # Ensure client financial account is always created and kept in sync
+        try:
+            from finance.models import ClientAccount
+            account, created = ClientAccount.objects.get_or_create(
+                client=self,
+                defaults={
+                    'opening_balance': self.opening_balance,
+                    'current_balance': self.opening_balance
+                }
+            )
+            if not created and account.opening_balance != self.opening_balance:
+                account.opening_balance = self.opening_balance
+                account.recalculate()
+        except Exception:
+            pass
 
     @property
     def is_cash_client(self):
@@ -75,24 +96,33 @@ class Client(models.Model):
 
     @property
     def financial_account(self):
-        if hasattr(self, 'account'):
-            return self.account
-        return None
+        try:
+            return getattr(self, 'account', None)
+        except Exception:
+            return None
 
     @property
     def outstanding_balance(self):
-        if hasattr(self, 'account'):
-            return self.account.current_balance
-        return self.opening_balance
+        try:
+            acc = getattr(self, 'account', None)
+            if acc:
+                return acc.current_balance if acc.current_balance is not None else Decimal('0.00')
+        except Exception:
+            pass
+        return self.opening_balance if self.opening_balance is not None else Decimal('0.00')
 
     @property
     def available_credit(self):
         if self.is_cash_client:
             return Decimal('0.00')
-        return self.credit_limit - self.outstanding_balance
+        limit = self.credit_limit if self.credit_limit is not None else Decimal('0.00')
+        balance = self.outstanding_balance if self.outstanding_balance is not None else Decimal('0.00')
+        return limit - balance
 
     @property
     def is_credit_exceeded(self):
+        limit = self.credit_limit if self.credit_limit is not None else Decimal('0.00')
+        balance = self.outstanding_balance if self.outstanding_balance is not None else Decimal('0.00')
         if self.is_cash_client:
-            return self.outstanding_balance > Decimal('0.00')
-        return self.outstanding_balance > self.credit_limit
+            return balance > Decimal('0.00')
+        return balance > limit
