@@ -4,12 +4,12 @@
 {% block title %}Super Admin Dashboard - Brick Management{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
     <div>
         <h3 class="fw-bold mb-0 text-dark">Executive Operations Dashboard</h3>
-        <p class="text-muted small mb-0">Live real-time operational and financial overview</p>
+        <p class="text-muted small mb-0">Live real-time operational, manufacturing, and financial overview</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
         <a href="{% url 'production:production_create' %}" class="btn btn-brick btn-sm d-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-plus-circle"></i> Record Production
         </a>
@@ -22,6 +22,38 @@
     </div>
 </div>
 
+<!-- Date Filter Bar -->
+<div class="card border-0 shadow-sm rounded-3 p-2 mb-4 bg-white">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="small fw-semibold text-secondary"><i class="bi bi-funnel me-1"></i>Filter Period:</span>
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="?period=today" class="btn {% if filter_mode == 'today' %}btn-dark{% else %}btn-outline-secondary{% endif %}">Today</a>
+                <a href="?period=this_week" class="btn {% if filter_mode == 'this_week' %}btn-dark{% else %}btn-outline-secondary{% endif %}">This Week</a>
+                <a href="?period=this_month" class="btn {% if filter_mode == 'this_month' %}btn-dark{% else %}btn-outline-secondary{% endif %}">This Month</a>
+                <a href="?period=all_time" class="btn {% if filter_mode == 'all_time' %}btn-dark{% else %}btn-outline-secondary{% endif %}">All Time</a>
+            </div>
+        </div>
+
+        <form method="get" class="d-flex align-items-center gap-1">
+            <input type="hidden" name="period" value="custom">
+            <span class="small text-muted me-1">Custom:</span>
+            <input type="date" name="date_from" value="{{ filter_from|date:'Y-m-d' }}" class="form-control form-control-sm" style="width: 135px;" required>
+            <span class="text-muted small">to</span>
+            <input type="date" name="date_to" value="{{ filter_to|date:'Y-m-d' }}" class="form-control form-control-sm" style="width: 135px;" required>
+            <button type="submit" class="btn btn-sm btn-secondary"><i class="bi bi-arrow-repeat"></i> Apply</button>
+        </form>
+    </div>
+</div>
+
+<!-- Active Filter Notice -->
+<div class="alert alert-light border py-2 mb-4 d-flex justify-content-between align-items-center">
+    <div class="small text-secondary">
+        <i class="bi bi-calendar-check me-1"></i> Showing metrics from <strong>{{ filter_from|date:"d M Y" }}</strong> to <strong>{{ filter_to|date:"d M Y" }}</strong>
+    </div>
+    <span class="badge bg-primary-subtle text-primary border">Super Admin View</span>
+</div>
+
 <!-- 12 KPI Metrics Grid -->
 <div class="row g-3 mb-4">
     <!-- Factory & Stock -->
@@ -31,7 +63,7 @@
                 <div>
                     <div class="kpi-title">Total Products</div>
                     <div class="kpi-value mt-1">{{ total_products }}</div>
-                    <small class="text-muted"><a href="{% url 'products:product_list' %}" class="text-decoration-none">View catalog &rarr;</a></small>
+                    <small class="text-muted">{{ active_products }} active catalog items &bull; <a href="{% url 'products:product_list' %}" class="text-decoration-none">Catalog &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
                     <i class="bi bi-box-seam"></i>
@@ -46,7 +78,7 @@
                 <div>
                     <div class="kpi-title">Factory Available Stock</div>
                     <div class="kpi-value mt-1">{{ total_factory_stock|intcomma }}</div>
-                    <small class="text-muted"><a href="{% url 'inventory:inventory_list' %}" class="text-decoration-none">Inspect stock &rarr;</a></small>
+                    <small class="text-muted"><a href="{% url 'inventory:inventory_list' %}" class="text-decoration-none">Audit ledger &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
                     <i class="bi bi-archive"></i>
@@ -59,9 +91,9 @@
         <div class="card card-kpi p-3 h-100">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="kpi-title">Today's Production</div>
-                    <div class="kpi-value mt-1 text-primary">{{ today_production|intcomma }}</div>
-                    <small class="text-muted"><a href="{% url 'production:production_list' %}" class="text-decoration-none">Shift logs &rarr;</a></small>
+                    <div class="kpi-title">Production in Period</div>
+                    <div class="kpi-value mt-1 text-primary">{{ period_production|intcomma }} <span class="fs-6 text-muted">units</span></div>
+                    <small class="text-muted">{{ today_production|intcomma }} produced today &bull; <a href="{% url 'production:production_list' %}" class="text-decoration-none">Logs &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-info bg-opacity-10 text-info">
                     <i class="bi bi-gear-wide-connected"></i>
@@ -74,9 +106,9 @@
         <div class="card card-kpi p-3 h-100">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="kpi-title">Today's Dispatch</div>
-                    <div class="kpi-value mt-1 text-danger">{{ today_dispatch_count }} <span class="fs-6 text-muted">loads</span></div>
-                    <small class="text-muted">₹{{ today_dispatch_amount|intcomma }} billed</small>
+                    <div class="kpi-title">Dispatches in Period</div>
+                    <div class="kpi-value mt-1 text-danger">{{ period_dispatch_qty|intcomma }} <span class="fs-6 text-muted">units</span></div>
+                    <small class="text-muted">{{ period_dispatch_count }} loads (₹{{ period_dispatch_amount|intcomma }}) &bull; <a href="{% url 'dispatch:dispatch_list' %}" class="text-decoration-none">Dispatches &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-danger bg-opacity-10 text-danger">
                     <i class="bi bi-truck"></i>
@@ -91,8 +123,8 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="kpi-title">Active Clients</div>
-                    <div class="kpi-value mt-1">{{ total_clients }}</div>
-                    <small class="text-muted"><a href="{% url 'clients:client_list' %}" class="text-decoration-none">Client registry &rarr;</a></small>
+                    <div class="kpi-value mt-1">{{ active_clients }}</div>
+                    <small class="text-muted">{{ total_clients }} registered clients &bull; <a href="{% url 'clients:client_list' %}" class="text-decoration-none">Directory &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-secondary bg-opacity-10 text-secondary">
                     <i class="bi bi-people"></i>
@@ -107,7 +139,7 @@
                 <div>
                     <div class="kpi-title">Active Construction Projects</div>
                     <div class="kpi-value mt-1 text-warning">{{ active_projects }}</div>
-                    <small class="text-muted"><a href="{% url 'construction:project_list' %}" class="text-decoration-none">Site tracking &rarr;</a></small>
+                    <small class="text-muted">{{ total_projects }} total projects &bull; <a href="{% url 'construction:project_list' %}" class="text-decoration-none">Tracking &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-warning bg-opacity-10 text-warning">
                     <i class="bi bi-building"></i>
@@ -121,8 +153,8 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="kpi-title">Client Site Stock</div>
-                    <div class="kpi-value mt-1">{{ total_client_material_stock|intcomma }}</div>
-                    <small class="text-muted">Delivered to client sites</small>
+                    <div class="kpi-value mt-1">{{ total_client_material_stock|intcomma }} <span class="fs-6 text-muted">units</span></div>
+                    <small class="text-muted">Delivered to active construction sites</small>
                 </div>
                 <div class="kpi-icon-box bg-primary bg-opacity-10 text-primary">
                     <i class="bi bi-layers"></i>
@@ -135,9 +167,9 @@
         <div class="card card-kpi p-3 h-100">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="kpi-title">Today's Site Usage</div>
-                    <div class="kpi-value mt-1 text-secondary">{{ today_usage|intcomma }}</div>
-                    <small class="text-muted">{{ today_workers }} workers present today</small>
+                    <div class="kpi-title">Site Usage in Period</div>
+                    <div class="kpi-value mt-1 text-secondary">{{ period_usage|intcomma }} <span class="fs-6 text-muted">units</span></div>
+                    <small class="text-muted">{{ today_usage|intcomma }} used today &bull; <a href="{% url 'construction:project_list' %}" class="text-decoration-none">Daily logs &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-dark bg-opacity-10 text-dark">
                     <i class="bi bi-tools"></i>
@@ -153,7 +185,7 @@
                 <div>
                     <div class="kpi-title text-danger">Total Outstanding Credit</div>
                     <div class="kpi-value mt-1 text-danger">₹{{ total_outstanding|intcomma }}</div>
-                    <small class="text-muted"><a href="{% url 'finance:credit_management' %}" class="text-decoration-none text-danger">Manage credit &rarr;</a></small>
+                    <small class="text-muted"><a href="{% url 'finance:credit_management' %}" class="text-decoration-none text-danger">Manage credit balances &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-danger bg-opacity-10 text-danger">
                     <i class="bi bi-cash-stack"></i>
@@ -166,9 +198,9 @@
         <div class="card card-kpi p-3 h-100 border-start border-success border-3">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="kpi-title text-success">Today's Payments Received</div>
-                    <div class="kpi-value mt-1 text-success">₹{{ today_payments|intcomma }}</div>
-                    <small class="text-muted"><a href="{% url 'finance:payment_list' %}" class="text-decoration-none text-success">Payment ledger &rarr;</a></small>
+                    <div class="kpi-title text-success">Payments Collected</div>
+                    <div class="kpi-value mt-1 text-success">₹{{ period_payments|intcomma }}</div>
+                    <small class="text-muted">₹{{ today_payments|intcomma }} today &bull; <a href="{% url 'finance:payment_list' %}" class="text-decoration-none text-success">Ledger &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-success bg-opacity-10 text-success">
                     <i class="bi bi-wallet2"></i>
@@ -181,9 +213,9 @@
         <div class="card card-kpi p-3 h-100">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="kpi-title">Total Operating Expenses</div>
-                    <div class="kpi-value mt-1">₹{{ total_expenses|intcomma }}</div>
-                    <small class="text-muted"><a href="{% url 'finance:expense_list' %}" class="text-decoration-none">Expense register &rarr;</a></small>
+                    <div class="kpi-title">Expenses in Period</div>
+                    <div class="kpi-value mt-1">₹{{ period_expenses|intcomma }}</div>
+                    <small class="text-muted">₹{{ total_expenses|intcomma }} all-time &bull; <a href="{% url 'finance:expense_list' %}" class="text-decoration-none">Expense book &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-secondary bg-opacity-10 text-secondary">
                     <i class="bi bi-receipt"></i>
@@ -197,8 +229,8 @@
             <div class="d-flex justify-content-between align-items-start">
                 <div>
                     <div class="kpi-title">Today's Attendance</div>
-                    <div class="kpi-value mt-1">{{ today_workers }} <span class="fs-6 text-muted">workers</span></div>
-                    <small class="text-muted"><a href="{% url 'workers:attendance_list' %}" class="text-decoration-none">Roll call &rarr;</a></small>
+                    <div class="kpi-value mt-1">{{ today_workers }} / {{ total_registered_workers }} <span class="fs-6 text-muted">present</span></div>
+                    <small class="text-muted"><a href="{% url 'workers:attendance_list' %}" class="text-decoration-none">Attendance register &rarr;</a></small>
                 </div>
                 <div class="kpi-icon-box bg-info bg-opacity-10 text-info">
                     <i class="bi bi-person-check"></i>

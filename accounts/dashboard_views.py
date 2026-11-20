@@ -113,24 +113,107 @@ def dashboard_view(request):
         return render(request, 'accounts/dashboard_owner.html', context)
 
     else:
-        # --- Super Admin Dashboard (Complete 12 KPIs + Charts + Activities) ---
-        total_products = Product.objects.filter(is_active=True).count()
+        # --- Super Admin Dashboard (Dynamic Date Filtering + Accurate KPIs + Charts + Activities) ---
+        filter_mode = request.GET.get('period', 'this_month')
+        date_from_str = request.GET.get('date_from', '')
+        date_to_str = request.GET.get('date_to', '')
+
+        if filter_mode == 'today':
+            filter_from = today
+            filter_to = today
+        elif filter_mode == 'this_week':
+            filter_from = today - timedelta(days=today.weekday())
+            filter_to = today
+        elif filter_mode == 'all_time':
+            filter_from = today - timedelta(days=365 * 10)
+            filter_to = today
+        elif filter_mode == 'custom' and date_from_str and date_to_str:
+            try:
+                filter_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+                filter_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+            except ValueError:
+                filter_from = start_of_month
+                filter_to = today
+        else:
+            filter_mode = 'this_month'
+            filter_from = start_of_month
+            filter_to = today
+
+        # 1. Products & Factory Stock
+        total_products = Product.objects.count()
+        active_products = Product.objects.filter(is_active=True).count()
+
+        # Ensure all products have synced FactoryInventory
+        for prod in Product.objects.all():
+            inv, _ = FactoryInventory.objects.get_or_create(product=prod)
+            inv.recalculate()
+            inv.save(update_fields=['current_stock'])
+
         total_factory_stock = FactoryInventory.objects.aggregate(total=Sum('current_stock'))['total'] or 0
+        total_opening_stock = FactoryInventory.objects.aggregate(total=Sum('opening_stock'))['total'] or 0
+        all_time_production = FactoryInventory.objects.aggregate(total=Sum('total_production'))['total'] or 0
+        all_time_dispatch = FactoryInventory.objects.aggregate(total=Sum('total_dispatch'))['total'] or 0
+
+        # 2. Production
+        period_production = ProductionEntry.objects.filter(
+            production_date__gte=filter_from, production_date__lte=filter_to
+        ).aggregate(total=Sum('quantity'))['total'] or 0
         today_production = ProductionEntry.objects.filter(production_date=today).aggregate(total=Sum('quantity'))['total'] or 0
-        
+
+        # 3. Dispatches
+        period_dispatches_qs = Dispatch.objects.filter(dispatch_date__gte=filter_from, dispatch_date__lte=filter_to)
+        period_dispatch_count = period_dispatches_qs.count()
+        period_dispatch_amount = period_dispatches_qs.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        period_dispatch_qty = DispatchItem.objects.filter(
+            dispatch__dispatch_date__gte=filter_from, dispatch__dispatch_date__lte=filter_to
+        ).aggregate(total=Sum('quantity'))['total'] or 0
+
         today_dispatches_qs = Dispatch.objects.filter(dispatch_date=today)
         today_dispatch_count = today_dispatches_qs.count()
         today_dispatch_amount = today_dispatches_qs.aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
+        today_dispatch_qty = DispatchItem.objects.filter(dispatch__dispatch_date=today).aggregate(total=Sum('quantity'))['total'] or 0
 
-        total_clients = Client.objects.filter(is_active=True).count()
+        # 4. Clients & Projects
+        total_clients = Client.objects.count()
+        active_clients = Client.objects.filter(is_active=True).count()
         active_projects = ClientProject.objects.filter(status='Active').count()
+        total_projects = ClientProject.objects.count()
+
+        # Recalculate client material inventory for accuracy
+        for cinv in ClientInventory.objects.all():
+            cinv.recalculate()
+            cinv.save(update_fields=['current_stock'])
         total_client_material_stock = ClientInventory.objects.aggregate(total=Sum('current_stock'))['total'] or 0
-        
+
+        # 5. Site Usage & Workers
+        period_usage = DailyMaterialUsage.objects.filter(
+            entry__date__gte=filter_from, entry__date__lte=filter_to
+        ).aggregate(total=Sum('quantity_used'))['total'] or 0
         today_usage = DailyMaterialUsage.objects.filter(entry__date=today).aggregate(total=Sum('quantity_used'))['total'] or 0
+
+        total_workers = WorkerAttendance.objects.filter(date=today).count()
+        from workers.models import Worker
+        total_registered_workers = Worker.objects.filter(is_active=True).count()
         today_workers = WorkerAttendance.objects.filter(date=today, status__in=['Present', 'Half Day']).count()
-        
-        total_outstanding = ClientAccount.objects.aggregate(total=Sum('current_balance'))['total'] or Decimal('0.00')
+
+        # 6. Finance & Outstanding Credit
+        all_accounts = ClientAccount.objects.select_related('client').filter(client__is_active=True)
+        for acc in all_accounts:
+            acc.recalculate()
+        total_outstanding = sum(
+            (acc.current_balance or Decimal('0.00'))
+            for acc in all_accounts
+            if (acc.current_balance or Decimal('0.00')) > Decimal('0.00')
+        )
+
+        period_payments = Payment.objects.filter(
+            payment_date__gte=filter_from, payment_date__lte=filter_to
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         today_payments = Payment.objects.filter(payment_date=today).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+
+        period_expenses = Expense.objects.filter(
+            expense_date__gte=filter_from, expense_date__lte=filter_to
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
         total_expenses = Expense.objects.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
         # Recent activities
@@ -139,12 +222,13 @@ def dashboard_view(request):
         recent_payments = Payment.objects.select_related('client', 'recorded_by').order_by('-payment_date', '-created_at')[:5]
         recent_construction_entries = DailyConstructionEntry.objects.select_related('project', 'project__client').order_by('-date', '-created_at')[:5]
 
-        # Chart Data: Last 7 Days Production & Dispatch
+        # Chart Data: Dynamic range based on selected filter
+        chart_days = min(14, max(7, (filter_to - filter_from).days + 1)) if filter_mode != 'all_time' else 14
         chart_labels = []
         production_data = []
         dispatch_data = []
-        for i in range(6, -1, -1):
-            day = today - timedelta(days=i)
+        for i in range(chart_days - 1, -1, -1):
+            day = filter_to - timedelta(days=i)
             chart_labels.append(day.strftime('%d %b'))
             p_sum = ProductionEntry.objects.filter(production_date=day).aggregate(s=Sum('quantity'))['s'] or 0
             d_sum = DispatchItem.objects.filter(dispatch__dispatch_date=day).aggregate(s=Sum('quantity'))['s'] or 0
@@ -158,18 +242,36 @@ def dashboard_view(request):
 
         context = {
             'role': 'superadmin',
+            'filter_mode': filter_mode,
+            'filter_from': filter_from,
+            'filter_to': filter_to,
             'total_products': total_products,
+            'active_products': active_products,
             'total_factory_stock': total_factory_stock,
+            'total_opening_stock': total_opening_stock,
+            'all_time_production': all_time_production,
+            'all_time_dispatch': all_time_dispatch,
+            'period_production': period_production,
             'today_production': today_production,
+            'period_dispatch_count': period_dispatch_count,
+            'period_dispatch_qty': period_dispatch_qty,
+            'period_dispatch_amount': period_dispatch_amount,
             'today_dispatch_count': today_dispatch_count,
+            'today_dispatch_qty': today_dispatch_qty,
             'today_dispatch_amount': today_dispatch_amount,
             'total_clients': total_clients,
+            'active_clients': active_clients,
             'active_projects': active_projects,
+            'total_projects': total_projects,
             'total_client_material_stock': total_client_material_stock,
+            'period_usage': period_usage,
             'today_usage': today_usage,
             'today_workers': today_workers,
+            'total_registered_workers': total_registered_workers,
             'total_outstanding': total_outstanding,
+            'period_payments': period_payments,
             'today_payments': today_payments,
+            'period_expenses': period_expenses,
             'total_expenses': total_expenses,
             'recent_productions': recent_productions,
             'recent_dispatches': recent_dispatches,
