@@ -106,3 +106,38 @@ class AccountRoleTests(TestCase):
         self.assertEqual(settings.SESSION_COOKIE_SAMESITE, 'Lax')
         self.assertEqual(settings.X_FRAME_OPTIONS, 'DENY')
         self.assertTrue(settings.SECURE_CONTENT_TYPE_NOSNIFF)
+
+    def test_application_settings_view_superadmin_access(self):
+        # Super Admin can access settings
+        self.client.force_login(self.superadmin)
+        response = self.client.get(reverse('accounts:settings'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Application & Super Admin Settings")
+
+        # Accountant is denied
+        self.client.force_login(self.accountant)
+        response = self.client.get(reverse('accounts:settings'))
+        self.assertEqual(response.status_code, 403)
+
+        # Owner is denied
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse('accounts:settings'))
+        self.assertEqual(response.status_code, 403)
+
+    def test_update_company_settings(self):
+        self.client.force_login(self.superadmin)
+        response = self.client.post(reverse('accounts:settings'), {
+            'action': 'save_company',
+            'company_name': 'Updated Factory Name',
+            'phone': '+91 99999 88888',
+            'email': 'factory@example.com',
+            'currency_symbol': '₹',
+            'tax_number': 'GSTIN123456',
+            'address': 'Test Road',
+            'dispatch_terms': 'Immediate payment',
+        })
+        self.assertEqual(response.status_code, 302)
+        from accounts.models import CompanySetting
+        setting = CompanySetting.get_settings()
+        self.assertEqual(setting.company_name, 'Updated Factory Name')
+        self.assertEqual(setting.phone, '+91 99999 88888')

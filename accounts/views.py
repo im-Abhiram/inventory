@@ -7,7 +7,11 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q
-from .forms import UserLoginForm, UserCreateForm, UserEditForm, UserPasswordChangeForm
+from .models import CompanySetting
+from .forms import (
+    UserLoginForm, UserCreateForm, UserEditForm, UserPasswordChangeForm,
+    CompanySettingForm, SuperAdminProfileForm
+)
 from .decorators import superadmin_required, get_user_role
 
 
@@ -221,3 +225,57 @@ def user_toggle_status(request, user_id):
             status_text = "activated" if user_obj.is_active else "deactivated"
             messages.success(request, f"User '{user_obj.username}' was {status_text}.")
     return redirect('accounts:user_list')
+
+
+@superadmin_required
+def application_settings_view(request):
+    """
+    Super Admin Application & Business Settings management.
+    Allows configuring company details, receipt/dispatch terms, contact numbers,
+    as well as updating the Super Admin's own profile and password.
+    """
+    settings_obj = CompanySetting.get_settings()
+    current_user = request.user
+
+    setting_form = CompanySettingForm(instance=settings_obj)
+    profile_form = SuperAdminProfileForm(instance=current_user)
+    password_form = UserPasswordChangeForm()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'save_company':
+            setting_form = CompanySettingForm(request.POST, instance=settings_obj)
+            if setting_form.is_valid():
+                setting_form.save()
+                messages.success(request, "Application & Company settings saved successfully.")
+                return redirect('accounts:settings')
+            else:
+                messages.error(request, "Please correct the errors in the company settings form.")
+
+        elif action == 'save_profile':
+            profile_form = SuperAdminProfileForm(request.POST, instance=current_user)
+            if profile_form.is_valid():
+                profile_form.save()
+                messages.success(request, "Super Admin profile details updated successfully.")
+                return redirect('accounts:settings')
+            else:
+                messages.error(request, "Please correct the errors in your profile form.")
+
+        elif action == 'change_password':
+            password_form = UserPasswordChangeForm(request.POST)
+            if password_form.is_valid():
+                current_user.set_password(password_form.cleaned_data['new_password'])
+                current_user.save()
+                login(request, current_user)  # Keep user logged in after password change
+                messages.success(request, "Super Admin password changed successfully.")
+                return redirect('accounts:settings')
+            else:
+                messages.error(request, "Passwords did not match or were invalid.")
+
+    return render(request, 'accounts/settings.html', {
+        'setting_form': setting_form,
+        'profile_form': profile_form,
+        'password_form': password_form,
+        'settings_obj': settings_obj,
+    })

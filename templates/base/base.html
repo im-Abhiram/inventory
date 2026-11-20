@@ -80,6 +80,9 @@
                 <a href="{% url 'accounts:user_list' %}" class="list-group-item {% if 'accounts/users' in request.path %}active{% endif %}">
                     <i class="bi bi-shield-lock"></i> User Management
                 </a>
+                <a href="{% url 'accounts:settings' %}" class="list-group-item {% if 'accounts/settings' in request.path %}active{% endif %}">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
                 {% endif %}
             </div>
 
@@ -140,6 +143,7 @@
                                 <li><hr class="dropdown-divider"></li>
                                 {% if is_superadmin %}
                                 <li><a class="dropdown-item" href="{% url 'accounts:user_list' %}"><i class="bi bi-people me-2"></i> Manage Users</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:settings' %}"><i class="bi bi-gear me-2"></i> Settings</a></li>
                                 <li><a class="dropdown-item" href="/admin/" target="_blank"><i class="bi bi-tools me-2"></i> Django Admin</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 {% endif %}

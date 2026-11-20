@@ -69,6 +69,32 @@ class UserProfile(models.Model):
         return self.is_owner
 
 
+class CompanySetting(models.Model):
+    company_name = models.CharField(max_length=200, default='Thamarayyath Bricks & Construction Materials')
+    phone = models.CharField(max_length=50, blank=True, default='+91 98765 43210')
+    email = models.EmailField(blank=True, default='contact@thamarayyath.com')
+    address = models.TextField(blank=True, default='Factory Road, Industrial Area')
+    currency_symbol = models.CharField(max_length=10, default='₹')
+    tax_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="GST / Tax ID")
+    dispatch_terms = models.TextField(
+        blank=True,
+        default='Goods once delivered and accepted will not be returned. Payment due as per agreed credit terms.'
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Application Setting'
+        verbose_name_plural = 'Application Settings'
+
+    def __str__(self):
+        return self.company_name
+
+    @classmethod
+    def get_settings(cls):
+        setting, _ = cls.objects.get_or_create(id=1)
+        return setting
+
+
 @receiver(post_save, sender=User)
 def create_or_update_user_profile(sender, instance, created, **kwargs):
     if created:
