@@ -18,56 +18,66 @@ from dispatch.models import Dispatch, DispatchItem
 class Command(BaseCommand):
     help = 'Seeds initial demo data for the Brick Manufacturing System'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--no-users',
+            action='store_true',
+            help='Skip creating predefined demo user accounts (admin, accountant, owner)'
+        )
+
     def handle(self, *args, **options):
         self.stdout.write(self.style.NOTICE("Seeding Brick Manufacturing System initial data..."))
 
-        # 1. Create Default Users
-        admin_user, created = User.objects.get_or_create(
-            username='admin',
-            defaults={
-                'email': 'admin@thamarayyath.com',
-                'first_name': 'Factory',
-                'last_name': 'Manager',
-                'is_staff': True,
-                'is_superuser': True
-            }
-        )
-        if created:
-            admin_user.set_password('Admin@1234')
-            admin_user.save()
-            admin_user.profile.role = UserProfile.ROLE_SUPERADMIN
-            admin_user.profile.save()
-            self.stdout.write(self.style.SUCCESS("Created Super Admin user: admin / Admin@1234"))
+        # 1. Create Default Users (Skipped if --no-users is passed)
+        if not options.get('no_users'):
+            admin_user, created = User.objects.get_or_create(
+                username='admin',
+                defaults={
+                    'email': 'admin@thamarayyath.com',
+                    'first_name': 'Factory',
+                    'last_name': 'Manager',
+                    'is_staff': True,
+                    'is_superuser': True
+                }
+            )
+            if created:
+                admin_user.set_password('Admin@1234')
+                admin_user.save()
+                admin_user.profile.role = UserProfile.ROLE_SUPERADMIN
+                admin_user.profile.save()
+                self.stdout.write(self.style.SUCCESS("Created Super Admin user: admin / Admin@1234"))
 
-        accountant_user, created = User.objects.get_or_create(
-            username='accountant',
-            defaults={
-                'email': 'accounts@thamarayyath.com',
-                'first_name': 'Chief',
-                'last_name': 'Accountant',
-            }
-        )
-        if created:
-            accountant_user.set_password('Accounts@1234')
-            accountant_user.save()
-            accountant_user.profile.role = UserProfile.ROLE_ACCOUNTANT
-            accountant_user.profile.save()
-            self.stdout.write(self.style.SUCCESS("Created Accountant user: accountant / Accounts@1234"))
+            accountant_user, created = User.objects.get_or_create(
+                username='accountant',
+                defaults={
+                    'email': 'accounts@thamarayyath.com',
+                    'first_name': 'Chief',
+                    'last_name': 'Accountant',
+                }
+            )
+            if created:
+                accountant_user.set_password('Accounts@1234')
+                accountant_user.save()
+                accountant_user.profile.role = UserProfile.ROLE_ACCOUNTANT
+                accountant_user.profile.save()
+                self.stdout.write(self.style.SUCCESS("Created Accountant user: accountant / Accounts@1234"))
 
-        owner_user, created = User.objects.get_or_create(
-            username='owner',
-            defaults={
-                'email': 'owner@thamarayyath.com',
-                'first_name': 'Business',
-                'last_name': 'Owner',
-            }
-        )
-        if created:
-            owner_user.set_password('Owner@1234')
-            owner_user.save()
-            owner_user.profile.role = UserProfile.ROLE_OWNER
-            owner_user.profile.save()
-            self.stdout.write(self.style.SUCCESS("Created Owner user: owner / Owner@1234"))
+            owner_user, created = User.objects.get_or_create(
+                username='owner',
+                defaults={
+                    'email': 'owner@thamarayyath.com',
+                    'first_name': 'Business',
+                    'last_name': 'Owner',
+                }
+            )
+            if created:
+                owner_user.set_password('Owner@1234')
+                owner_user.save()
+                owner_user.profile.role = UserProfile.ROLE_OWNER
+                owner_user.profile.save()
+                self.stdout.write(self.style.SUCCESS("Created Owner user: owner / Owner@1234"))
+        else:
+            self.stdout.write(self.style.NOTICE("Skipping predefined user creation as requested."))
 
         # 2. Expense Categories
         categories = [

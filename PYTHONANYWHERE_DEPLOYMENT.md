@@ -65,18 +65,39 @@ python manage.py collectstatic --noinput
 
 ---
 
-#### 6. Seed Demonstration Data or Create Super Admin
-You can seed initial factory products, demo clients, and the three pre-configured roles:
+#### 6. Create Your Custom Super Admin (No Predefined Credentials)
+Create your own custom Super Admin with your chosen username and password:
 ```bash
-python manage.py seed_data
+python manage.py setup_admin
+```
+*(Or use standard Django command: `python manage.py createsuperuser`)*.
+
+You will be interactively prompted for your custom username and password.
+
+*(Optional)* If you wish to seed initial factory products, units, and categories without creating any predefined demo users:
+```bash
+python manage.py seed_data --no-users
 ```
 
-**Default Seed Credentials:**
-- **Super Admin**: `admin` / `Admin@1234`
-- **Accountant**: `accountant` / `Accounts@1234`
-- **Owner**: `owner` / `Owner@1234`
+---
 
-*(Alternatively or in addition, you can create a custom superuser by running `python manage.py createsuperuser`)*.
+#### Super Admin Recovery & Account Management
+If you ever lose or forget your Super Admin username or password:
+
+1. **List all existing users in the database:**
+   ```bash
+   python manage.py setup_admin --list
+   ```
+
+2. **Reset password or promote an existing/new user to Super Admin:**
+   ```bash
+   python manage.py setup_admin --username <your_username> --password <your_password>
+   ```
+
+3. **Delete any unwanted demo accounts:**
+   ```bash
+   python manage.py setup_admin --delete-user admin
+   ```
 
 ---
 
@@ -144,7 +165,7 @@ Click **Save** in the top right corner.
 2. Click the large green button: **Reload thamarayyathproduction.pythonanywhere.com**.
 3. Open your browser and navigate to:  
    👉 **[https://thamarayyathproduction.pythonanywhere.com](https://thamarayyathproduction.pythonanywhere.com)**
-4. Log in using `admin` / `Admin@1234` (or your created superuser).
+4. Log in using your created Super Admin credentials.
 
 ---
 

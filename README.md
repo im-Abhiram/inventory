@@ -91,8 +91,11 @@ pip install -r requirements.txt
 # 4. Run migrations
 python manage.py migrate
 
-# 5. Populate initial demonstration data (Users, Products, Inventory, Clients)
-python manage.py seed_data
+# 5. Create your Super Admin (choose your own custom username & password)
+python manage.py setup_admin
+
+# (Optional: Populate demo products & materials without demo users)
+# python manage.py seed_data --no-users
 
 # 6. Start the development server
 python manage.py runserver
@@ -100,13 +103,19 @@ python manage.py runserver
 
 Open `http://127.0.0.1:8000/` in your browser.
 
-### Default Demonstration Logins
+### Super Admin Setup & Recovery
 
-| Role | Username | Password |
-|---|---|---|
-| **Super Admin** | `admin` | `Admin@1234` |
-| **Accountant** | `accountant` | `Accounts@1234` |
-| **Owner** | `owner` | `Owner@1234` |
+You can create or recover your custom Super Admin at any time without predefined credentials:
+```bash
+# Interactive setup:
+python manage.py setup_admin
+
+# View all existing users in the database:
+python manage.py setup_admin --list
+
+# Reset password or promote user directly:
+python manage.py setup_admin --username <your_user> --password <your_pass>
+```
 
 ---
 

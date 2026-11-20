@@ -76,6 +76,8 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.create(user=instance, role=role)
     else:
         if hasattr(instance, 'profile'):
+            if instance.is_superuser and instance.profile.role != UserProfile.ROLE_SUPERADMIN:
+                instance.profile.role = UserProfile.ROLE_SUPERADMIN
             instance.profile.save()
         else:
             role = UserProfile.ROLE_SUPERADMIN if instance.is_superuser else UserProfile.ROLE_OWNER
